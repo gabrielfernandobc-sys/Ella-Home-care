@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Cartao, Carregando, Selo } from "@/components/ui";
 import { CAMPO_POR_ID, type CampoId } from "@/lib/campos";
+import { formatarCnpj } from "@/lib/cnpj";
 import { CONFIRMACOES_PARA_CONFIAR } from "@/lib/depara";
 import { api } from "@/lib/cliente/api";
 import { letraColuna } from "@/lib/mapeamento";
@@ -136,13 +137,15 @@ export default function Historico() {
                   <td className="py-2 pr-3">{CAMPO_POR_ID[d.campo]?.rotulo ?? d.campo}</td>
                   <td className="py-2 pr-3 text-xs">
                     {d.base === d.campo ? "texto lido " : d.base === "cnpj" ? "CNPJ " : "descrição "}
-                    <span className="font-mono">“{d.de}”</span>
+                    <span className="font-mono">“{d.base === "cnpj" ? formatarCnpj(d.de) : d.de}”</span>
                   </td>
                   <td className="py-2 pr-3 font-medium">{d.para}</td>
                   <td className="py-2 pr-3">{d.origem === "planilha" ? "a planilha" : "suas correções"}</td>
                   <td className="py-2 pr-3">
                     {d.confirmacoes >= CONFIRMACOES_PARA_CONFIAR ? (
                       <Selo cor="verde">confiável</Selo>
+                    ) : d.usos === 0 ? (
+                      <Selo cor="cinza">ainda não usada</Selo>
                     ) : (
                       <Selo cor="amarelo">
                         conferindo ({d.confirmacoes}/{CONFIRMACOES_PARA_CONFIAR})

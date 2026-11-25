@@ -36,17 +36,27 @@ Você arrasta as notas (PDF, foto, XML ou print). O app lê os dados e mostra tu
   - soma dos itens contra o total da nota;
   - quantidade × unitário contra o total do item;
   - CNPJ válido, data plausível e campos obrigatórios preenchidos.
-- **Detecta duplicatas** pela chave de acesso da NF-e, pelo CNPJ + número + data + valor, pelo arquivo repetido e comparando com o que já está na planilha.
+- **Detecta duplicatas:**
+  - pela chave de acesso da NF-e e pelo CNPJ + número + data + valor;
+  - pelo fornecedor + data + valor, para prints sem CNPJ;
+  - pelo arquivo repetido, inclusive um PDF salvo de novo ou um print reenviado pelo WhatsApp;
+  - comparando com o que já está na planilha, mesmo sem coluna de total da nota (ele soma os itens de cada nota).
 - **Tela de revisão** com o documento original ao lado e três cores:
   - 🟢 tudo certo;
   - 🟡 conferir;
   - 🔴 erro ou duplicata.
-- **Aprende com você:** se você corrige "DIPIRONA 500MG C/10 CP" para "Dipirona 500 mg", nos próximos lotes a correção é aplicada sozinha. A linha fica amarela para você confirmar.
+- **Aprende com você e com a planilha:**
+  - se você corrige "DIPIRONA 500MG C/10 CP" para "Dipirona 500 mg", nos próximos lotes a correção é aplicada sozinha, inclusive em textos parecidos como "DIPIRONA SÓDICA 500MG C/10 CP";
+  - números, dosagens e tamanhos nunca são trocados: "500 mg" nunca vira "1 g" e luva "M" nunca vira "G";
+  - o app usa o nome que a sua planilha dá a cada fornecedor (pelo CNPJ) e lembra a categoria que você escolheu para cada item;
+  - nas primeiras vezes a linha fica amarela para você confirmar; depois de 2 confirmações, a correção vira automática.
 - **Lança na planilha** só as linhas aprovadas:
   - no fim da tabela, antes da linha de totais;
   - preserva fórmulas, formatação, filtros e validação de dados;
   - estende a soma da linha de totais para incluir as linhas novas.
 - **Rastreia tudo:** cada linha guarda o arquivo de origem e o ID do lote. Errou? **"Desfazer último lote"** remove só as linhas daquele lote.
+- **Opcional — comprovantes no Google Drive:** guarda o arquivo original em `Notas/AAAA-MM`, pelo mês da nota, e põe o link na coluna "Comprovante".
+- **Opcional — aprovar verdes automaticamente** (desligado por padrão): as linhas em que tudo conferiu já chegam aprovadas. Lançar continua sendo um clique seu.
 
 ### Regras que o app nunca quebra
 
@@ -86,6 +96,7 @@ Isto cria a "chave" que permite ao app entrar na sua conta Google e editar a pla
 1. Acesse **https://console.cloud.google.com** e entre com sua conta Google.
 2. No topo, clique no seletor de projetos e depois em **Novo projeto**. Dê o nome `Compras Express` e clique em **Criar**. Confira se o projeto novo está selecionado no topo.
 3. **Ative a API do Google Sheets:** menu ☰ → **APIs e serviços** → **Biblioteca**. Procure por **Google Sheets API**, abra e clique em **Ativar**.
+   - Se for usar os **comprovantes no Drive** (opcional), ative também a **Google Drive API** do mesmo jeito.
 4. **Configure a tela de consentimento:** menu ☰ → **APIs e serviços** → **Tela de permissão OAuth** (pode aparecer como **Google Auth Platform**).
    - Clique em **Começar**.
    - Nome do app: `Compras Express`. E-mail de suporte: o seu.
@@ -106,7 +117,13 @@ Isto cria a "chave" que permite ao app entrar na sua conta Google e editar a pla
 
 > **Sobre o login expirar:** enquanto o app do Google estiver em modo **"Teste"**, o Google pede para entrar de novo a cada 7 dias. Isso é normal. Para não precisar, vá em **Público** e clique em **Publicar app**. O Google vai mostrar "app não verificado" no login; como o app é seu, clique em **Avançado** e depois em **Acessar Compras Express**.
 
-**Permissões que o app pede:** só o seu e-mail (para registrar quem lançou) e acesso às planilhas (`spreadsheets`). Ele **não** pede acesso ao Gmail nem ao resto do Drive.
+**Permissões que o app pede:**
+
+- o seu e-mail, para registrar quem lançou;
+- acesso às planilhas (`spreadsheets`);
+- só se você ligar os comprovantes: `drive.file`, que permite ao app ver e criar **apenas os arquivos e pastas que ele mesmo criou**.
+
+Ele **não** pede acesso ao Gmail nem ao resto do seu Drive.
 
 ---
 
@@ -166,6 +183,16 @@ Colunas com **fórmula** aparecem com 🔒 e nunca recebem dados. Para cada linh
 
 **Dica:** se a planilha tiver colunas **"Arquivo de origem"** e **"Lote"**, cada linha lançada fica rastreável até o documento. Vale a pena criar essas duas colunas.
 
+**Opções (Passo 5 da tela), as duas desligadas por padrão:**
+
+- **Guardar os comprovantes no Google Drive.**
+  1. Crie uma coluna **"Comprovante"** na planilha e leia as colunas de novo.
+  2. Marque a opção e clique em **Autorizar Google Drive**.
+  3. Volte e salve.
+
+  Ao lançar, o app guarda o arquivo original em `Notas/AAAA-MM` e põe o link na coluna. Se o Drive falhar, **nada** é lançado; tente de novo. "Desfazer último lote" não apaga os arquivos do Drive.
+- **Aprovar automaticamente as linhas verdes.** As linhas verdes já chegam com a caixinha marcada ("auto"). Você continua revisando as amarelas e vermelhas, e é você quem clica em "Lançar". Se desmarcar uma linha, o app não marca de novo.
+
 ---
 
 ## Como usar no dia a dia
@@ -202,9 +229,10 @@ A pasta `exemplos/` também tem uma **`planilha-modelo.xlsx`** fictícia. Para c
 | Imagem do print/foto ou PDF escaneado | **Anthropic (IA Claude)**, para ler os dados | Ao processar o arquivo |
 | Texto de PDFs com texto, já **sem CPF e nome de paciente** | **Anthropic (IA Claude)** | Ao processar o arquivo |
 | XML de NF-e | **Não sai do computador** (lido localmente) | Nunca |
+| Arquivo original da nota (só se você ligar os comprovantes), **inteiro**: se tiver dado de paciente, ele vai junto | **Seu Google Drive**, pasta `Notas/AAAA-MM` | Quando você clica em "Lançar" |
 
 - O **nome do arquivo não é enviado** à IA.
-- O app **nunca guarda nem lança** nome, CPF, prontuário ou cartão SUS de pacientes. Ele apaga esses dados do texto antes de enviar e filtra a resposta da IA. O destinatário e as "informações complementares" da NF-e nunca são lidos.
+- O app **nunca lança na planilha nem guarda no histórico** nome, CPF, prontuário ou cartão SUS de pacientes. Ele apaga esses dados do texto antes de enviar à IA e filtra a resposta. O destinatário e as "informações complementares" da NF-e nunca são lidos. A exceção é o **arquivo original**: ele fica na pasta `data/` até o prazo de retenção e, se você ligar os comprovantes, vai inteiro para o seu Drive.
 - **Fica só no computador**, na pasta `data/` do app:
   - os arquivos enviados, apagados automaticamente após **30 dias** (configurável em `RETENCAO_DIAS` no `.env`);
   - o histórico de lotes;
@@ -271,8 +299,8 @@ exemplos/                    arquivos 100% fictícios
 
 ### Fases
 
-- **Fase 1 (MVP, esta versão):** conectar planilha, enviar em lote, extrair, validar, detectar duplicatas, revisar, lançar, rastrear e desfazer.
-- **Fase 2:** aprendizado do de/para com aproximação, deduplicação avançada, pasta de comprovantes no Drive (`Notas/AAAA-MM`) com link na planilha, e o modo "aprovar verdes automaticamente" (desligado por padrão).
+- **Fase 1 (MVP):** conectar planilha, enviar em lote, extrair, validar, detectar duplicatas, revisar, lançar, rastrear e desfazer.
+- **Fase 2 (esta versão):** aprendizado do de/para (aproximação segura, fornecedor por CNPJ, categoria por item, regras que ganham confiança), deduplicação avançada (PDF salvo de novo, print reenviado, fornecedor + data + valor, soma por nota na planilha), comprovantes no Drive (`Notas/AAAA-MM`) com link na planilha, e "aprovar verdes automaticamente" (desligado por padrão).
 - **Fase 3:** resumo mensal por categoria e fornecedor, alerta de preço fora do padrão e exportação de relatório.
 - **Excel (.xlsx / OneDrive):** previsto. A lógica de mapeamento e acréscimo já é separada da planilha (interface `AdaptadorPlanilha`), para receber um adaptador de Excel.
 

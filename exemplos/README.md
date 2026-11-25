@@ -11,9 +11,15 @@ Todos os arquivos desta pasta foram **inventados** para testar o app sem usar da
 | `pdf/danfe-ficticia-farmacia.pdf` | PDF com texto. É a mesma nota do `nfe-2`, então serve para testar duplicata. Tem um "paciente" fictício que deve ser ignorado | 🔴 duplicata se enviado junto com o XML da nota 88342 (precisa da chave da IA) |
 | `prints/print-pedido-whatsapp.png` | Print de pedido em conversa | Itens do pedido (precisa da chave da IA) |
 | `prints/print-sistema-compras.png` | Print de tela de sistema | Itens da NF 2290 (precisa da chave da IA) |
-| `planilha-modelo.xlsx` | Planilha modelo: cabeçalho, 3 linhas, coluna com fórmula e linha de TOTAL, mais uma aba "Modelo" vazia | Importe no Google Sheets para testar com uma planilha de verdade |
+| `planilha-modelo.xlsx` | Planilha modelo: cabeçalho, 3 linhas, coluna com fórmula, colunas "Arquivo de origem", "Lote" e "Comprovante", linha de TOTAL e uma aba "Modelo" vazia | Importe no Google Sheets para testar com uma planilha de verdade |
 
 Enviar `nfe-1-1201.xml` duas vezes no mesmo lote mostra o aviso de arquivo repetido.
 
 Para gerar de novo: `npm run exemplos`.
 Para um teste de volume com 100 XMLs fictícios: `npm run exemplos -- --lote-grande 100` (os arquivos vão para `data/lote-grande/`).
+
+**Fase 2 — como ver o aprendizado e as duplicatas avançadas no modo demonstração:**
+
+- Corrija a descrição de um item (ex.: "DIPIRONA 500MG C/10 CP" → "Dipirona 500 mg") e lance. Num lote novo, uma nota com o mesmo item (ou um item escrito de forma parecida) já vem corrigida. Depois de 2 lançamentos sem mudança, a correção deixa de pedir conferência. Veja tudo em **Histórico**.
+- Salve `print-pedido-whatsapp.png` como JPEG e envie as duas versões (precisa da chave da IA): a segunda é marcada como possível duplicata.
+

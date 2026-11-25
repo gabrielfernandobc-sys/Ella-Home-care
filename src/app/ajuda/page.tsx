@@ -20,6 +20,11 @@ export default function Ajuda() {
           <li>Clique em <b>Lançar na planilha</b>. Pronto!</li>
           <li>Errou? Na tela inicial, <b>Desfazer último lote</b> remove só as linhas daquele lote.</li>
         </ol>
+        <p className="mt-3 text-slate-700">
+          Com o tempo o app aprende: as correções que você faz e os nomes de fornecedor da sua planilha passam a ser aplicados sozinhos.
+          Nas primeiras vezes a linha fica amarela para você confirmar; depois de 2 confirmações, vira só uma nota cinza (ℹ️). As regras
+          aprendidas aparecem em <b>Histórico</b>, onde você pode apagar qualquer uma.
+        </p>
       </Cartao>
 
       <Cartao titulo="O que as cores querem dizer">
@@ -27,8 +32,12 @@ export default function Ajuda() {
           <li>🟢 <b>Verde</b>: tudo conferiu (soma, CNPJ, data, campos preenchidos, leitura com segurança).</li>
           <li>🟡 <b>Amarelo</b>: confira — falta algum dado, a leitura ficou incerta, a soma não bate ou o app corrigiu sozinho.</li>
           <li>
-            🔴 <b>Vermelho</b>: erro (CNPJ inválido, data no futuro) ou <b>duplicata</b> (já lançada ou repetida). Não é lançada, a menos que você
-            clique em “Lançar mesmo assim”.
+            🔴 <b>Vermelho</b>: erro (CNPJ inválido, data no futuro) ou <b>duplicata</b> (já lançada ou repetida — inclusive o mesmo PDF salvo
+            de novo ou o mesmo print reenviado). Não é lançada, a menos que você clique em “Lançar mesmo assim”.
+          </li>
+          <li>
+            <b>“auto”</b> embaixo da caixinha: a linha foi aprovada sozinha porque é verde (só se você ligou essa opção em Planilha → Passo
+            5). Lançar continua sendo um clique seu.
           </li>
         </ul>
       </Cartao>
@@ -56,9 +65,14 @@ export default function Ajuda() {
             enviado.
           </li>
           <li>
+            <b>Para o seu Google Drive</b> (só se você ligar os comprovantes): o arquivo original de cada nota lançada, na pasta{" "}
+            <b>Notas/AAAA-MM</b>. O app só enxerga os arquivos que ele mesmo criou no seu Drive. Atenção: o arquivo vai inteiro — se a nota
+            tiver algum dado de paciente, ele também fica no Drive (com o mesmo acesso que a sua conta Google já tem).
+          </li>
+          <li>
             <b>Fica só aqui</b>: os arquivos enviados (apagados automaticamente depois do prazo configurado), o histórico e as correções.
           </li>
-          <li>O app nunca guarda nem lança nome, CPF, prontuário ou cartão SUS de pacientes.</li>
+          <li>O app nunca lê, guarda no histórico nem lança na planilha nome, CPF, prontuário ou cartão SUS de pacientes.</li>
           <li>O app só abre neste computador (endereço “localhost”); ninguém de fora consegue acessar.</li>
         </ul>
       </Cartao>

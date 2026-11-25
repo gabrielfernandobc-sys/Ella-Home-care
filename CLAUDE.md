@@ -24,7 +24,11 @@ validar → detectar duplicatas → revisar (verde/amarelo/vermelho) → lançar
 7. **Nada passa em silêncio:** todo problema vira aviso (amarelo) ou erro (vermelho).
 8. **LGPD:** nunca extrair/guardar/lançar dados de pacientes (nome, CPF, prontuário, cartão SUS). Mascarar antes de
    enviar à IA (`src/lib/extracao/privacidade.ts`). Nunca registrar conteúdo de documentos em logs.
-9. **Repositório público:** nenhum dado real, nome de instituição, e-mail, chave ou segredo no código, testes ou exemplos.
+9. **Opções da fase 2 nunca contornam as regras acima:** "aprovar verdes automaticamente" só marca a caixinha
+   (lançar exige o clique da usuária) e vem desligada; comprovantes são guardados ANTES de gravar na planilha
+   (falhou = nada é lançado); o de/para por aproximação nunca troca números, unidades, tamanhos ou negações, e
+   fornecedor só é corrigido por CNPJ ou texto exato.
+10. **Repositório público:** nenhum dado real, nome de instituição, e-mail, chave ou segredo no código, testes ou exemplos.
    Exemplos são 100% fictícios (`src/lib/exemplos/ficticios.ts`, `exemplos/`). Segredos só no `.env` local.
 
 ## Stack
@@ -33,7 +37,8 @@ validar → detectar duplicatas → revisar (verde/amarelo/vermelho) → lançar
   leia `node_modules/next/dist/docs/` (versão nova, diferente do que você conhece).
 - SQLite via `node:sqlite` (Node ≥ 22.13), arquivo em `data/compras.db`.
 - Google Sheets API v4 (`@googleapis/sheets` + `google-auth-library`), OAuth com retorno em
-  `http://localhost:PORTA/api/auth/google/retorno`. Escopos: `openid email spreadsheets`.
+  `http://localhost:PORTA/api/auth/google/retorno`. Escopos: `openid email spreadsheets`; `drive.file` (via
+  `@googleapis/drive`) só é pedido quando a usuária liga os comprovantes — nunca peça escopos mais amplos.
 - Claude API (`@anthropic-ai/sdk`), modelo em `CLAUDE_MODEL` (padrão `claude-opus-5-5`), saída estruturada com
   `betaZodOutputFormat` + Zod, fallback de recusa no servidor (`fallbacks: "default"`).
 - Imagens: `sharp` + `heic-convert`. PDF: `unpdf`. XML: `fast-xml-parser` (sem DOCTYPE).
@@ -61,6 +66,9 @@ Antes de cada commit: `npm run lint && npm run typecheck && npm test`.
 - Lógica pura em `src/lib/*` (testável, sem I/O); I/O em `src/lib/servidor/*` e `src/lib/planilha/google.ts`.
 - Toda planilha é acessada pela interface `AdaptadorPlanilha` (`src/lib/planilha/tipos.ts`). Testes usam `PlanilhaMemoria`.
 - Toda regra nova de validação, duplicata ou escrita na planilha precisa de teste em `tests/`.
+- Mudança no banco = nova migração no fim de `MIGRACOES` (`src/lib/servidor/db.ts`); nunca edite uma migração já publicada.
+- Testes que precisam da IA usam `vi.mock("@/lib/extracao/ia")` (ver `tests/dedup-arquivos.test.ts`); comprovantes usam
+  `definirArmazemParaTestes`. Nenhum teste chama serviços externos.
 - Textos são gravados em modo RAW (nunca viram fórmula); datas/fórmulas em USER_ENTERED.
 - Um commit por etapa, mensagem clara em português. Uma branch por fase (`fase-1-mvp`, `fase-2`, `fase-3`) e PR ao fim de cada uma.
 - Nunca commitar `.env`, `data/`, credenciais, planilhas ou notas reais (o `.gitignore` bloqueia; não force).

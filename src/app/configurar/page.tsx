@@ -462,7 +462,8 @@ function Configurar() {
                   <br />
                   <span className="text-slate-600 text-sm">
                     Ao lançar, o arquivo original de cada nota vai para a pasta <b>{pastaComprovantes || "Notas"}/AAAA-MM</b> (pelo mês da
-                    nota) e o link entra na coluna “Comprovante”. O arquivo vai inteiro para o seu Drive.
+                    nota) e o link entra na coluna “Comprovante”. O arquivo vai inteiro para o seu Drive — se a nota tiver algum dado
+                    de paciente, ele também vai.
                     {planilha?.fonte === "demo" && " Na demonstração, os arquivos vão para uma pasta deste computador."}
                   </span>
                 </span>

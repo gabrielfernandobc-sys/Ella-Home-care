@@ -226,7 +226,7 @@ export function explicarDePara(a: DeParaAplicado): string {
   const base = `“${a.de || "(vazio)"}” → “${a.para}”`;
   if (a.tipo === "cnpj") return `${base} (nome usado para este CNPJ)`;
   if (a.tipo === "descricao") return `categoria “${a.para}” (usada antes para este item)`;
-  if (a.tipo === "parecido") return `${base} (parecido com “${a.referencia}”)`;
+  if (a.tipo === "parecido") return `${base} (parecido com um item que você já corrigiu)`;
   return base;
 }
 
