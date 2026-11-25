@@ -34,6 +34,8 @@ export interface Arquivo {
   criado_em: string;
   processado_em: string | null;
   apagado_em: string | null;
+  /** "txt:<sha256>" (PDF com texto) ou "img:<assinatura visual>" (imagens) */
+  assinatura: string | null;
 }
 
 export interface Documento {
@@ -156,10 +158,25 @@ export function atualizarLote(loteId: string, campos: Partial<Pick<Lote, "status
 export function inserirArquivo(a: Omit<Arquivo, "tentativas" | "processado_em" | "apagado_em">) {
   db()
     .prepare(
-      `INSERT INTO arquivos (id, lote_id, nome, tamanho, hash, tipo, caminho, previa, status, metodo, erro, duplicado_de, criado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO arquivos (id, lote_id, nome, tamanho, hash, tipo, caminho, previa, status, metodo, erro, duplicado_de, criado_em, assinatura)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(a.id, a.lote_id, a.nome, a.tamanho, a.hash, a.tipo, a.caminho, a.previa, a.status, a.metodo, a.erro, a.duplicado_de, a.criado_em);
+    .run(
+      a.id,
+      a.lote_id,
+      a.nome,
+      a.tamanho,
+      a.hash,
+      a.tipo,
+      a.caminho,
+      a.previa,
+      a.status,
+      a.metodo,
+      a.erro,
+      a.duplicado_de,
+      a.criado_em,
+      a.assinatura,
+    );
 }
 
 export function obterArquivo(arquivoId: string): Arquivo | null {
@@ -180,6 +197,26 @@ export function atualizarArquivo(arquivoId: string, campos: Partial<Arquivo>) {
   db()
     .prepare(`UPDATE arquivos SET ${chaves.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`)
     .run(...(Object.values(campos) as (string | number | null)[]), arquivoId);
+}
+
+export function arquivosComAssinatura(assinatura: string): Arquivo[] {
+  return db().prepare("SELECT * FROM arquivos WHERE assinatura = ? ORDER BY criado_em").all(assinatura) as unknown as Arquivo[];
+}
+
+/** Imagens recebidas (para procurar prints salvos de novo). */
+export function arquivosDeImagem(exceto: string, limite = 3000) {
+  return db()
+    .prepare(
+      "SELECT id, lote_id, nome, hash, assinatura, criado_em FROM arquivos WHERE assinatura LIKE 'img:%' AND id != ? ORDER BY criado_em DESC LIMIT ?",
+    )
+    .all(exceto, limite) as { id: string; lote_id: string; nome: string; hash: string; assinatura: string; criado_em: string }[];
+}
+
+/** Valores (da primeira linha) de cada documento lido de um arquivo. */
+export function valoresDosDocumentosDoArquivo(arquivoId: string): ValoresLinha[] {
+  return (
+    db().prepare("SELECT valores FROM linhas WHERE arquivo_id = ? AND indice = 0").all(arquivoId) as { valores: string }[]
+  ).map((r) => JSON.parse(r.valores));
 }
 
 export function arquivosPendentes(): Arquivo[] {

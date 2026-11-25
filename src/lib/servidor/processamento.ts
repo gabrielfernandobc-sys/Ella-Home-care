@@ -7,7 +7,9 @@ import { nomeAbaMensal } from "../abas";
 import { CAMPO_POR_ID, type CampoId, type ValoresLinha } from "../campos";
 import { chavesDaPlanilha, chavesDocumento, explicarChave, hashArquivo, hashLinha } from "../duplicatas";
 import { extrairArquivo, ErroExtracao } from "../extracao";
-import { detectarTipo, gerarPrevia } from "../extracao/imagem";
+import { assinaturaImagem, detectarTipo, DISTANCIA_VISUAL_MAXIMA, distanciaVisual, gerarPrevia } from "../extracao/imagem";
+import { assinaturaTexto, lerTextoPdf } from "../extracao/pdf";
+import { parseData, parseNumero } from "../texto";
 import { CAMPOS_DEPARA, explicarDePara, fornecedoresPorCnpj, TabelaDePara } from "../depara";
 import { camposDoDocumento, documentoParaLinhas } from "../linhas";
 import { corDaLinha, validarDocumento, type Problema } from "../validacao";
@@ -41,6 +43,21 @@ export async function receberArquivo(loteId: string, nome: string, bytes: Uint8A
     motivo = `Este mesmo arquivo já foi lançado em ${new Date(lanc.criado_em).toLocaleDateString("pt-BR")} (lote ${lanc.lote_id}).`;
   }
 
+  // Assinatura do conteúdo: o mesmo PDF salvo de novo (bytes diferentes, mesmo texto) é o mesmo arquivo.
+  const assinatura = await calcularAssinatura(bytes, tipo).catch(() => null);
+  if (!motivo && assinatura?.startsWith("txt:")) {
+    const iguais = repo.arquivosComAssinatura(assinatura);
+    const mesmoLote = iguais.find((a) => a.lote_id === loteId);
+    const jaLancado = iguais.map((a) => ({ a, l: repo.lancamentoDoHashArquivo(a.hash) })).find((x) => x.l);
+    if (mesmoLote) {
+      duplicadoDe = mesmoLote;
+      motivo = `Mesmo conteúdo do arquivo “${mesmoLote.nome}”, que já está neste lote (o PDF foi salvo de novo).`;
+    } else if (jaLancado) {
+      duplicadoDe = jaLancado.a;
+      motivo = `Mesmo conteúdo do PDF “${jaLancado.a.nome}”, já lançado em ${new Date(jaLancado.l!.criado_em).toLocaleDateString("pt-BR")} (lote ${jaLancado.l!.lote_id}).`;
+    }
+  }
+
   const caminho = caminhoPara(hash, tipo);
   salvarBytes(caminho, bytes);
   let previa: string | null = null;
@@ -71,9 +88,55 @@ export async function receberArquivo(loteId: string, nome: string, bytes: Uint8A
     criado_em: agora(),
     processado_em: null,
     apagado_em: null,
+    assinatura,
   };
   repo.inserirArquivo(arquivo);
   return { arquivo, duplicado: !!motivo };
+}
+
+async function calcularAssinatura(bytes: Uint8Array, tipo: string): Promise<string | null> {
+  if (tipo === "pdf") {
+    const t = await lerTextoPdf(bytes);
+    const a = t.temTexto ? assinaturaTexto(t.texto) : null;
+    return a ? `txt:${a}` : null;
+  }
+  if (["png", "jpeg", "heic", "webp", "gif"].includes(tipo)) {
+    return `img:${await assinaturaImagem(bytes, tipo as "png")}`;
+  }
+  return null;
+}
+
+/** Dois documentos se contradizem (valor, data ou CNPJ diferentes)? Então não são o mesmo. */
+function contradizem(a: ValoresLinha, b: ValoresLinha): boolean {
+  const ta = parseNumero(a.total_nota);
+  const tb = parseNumero(b.total_nota);
+  if (ta !== null && tb !== null && Math.abs(ta - tb) > 0.01) return true;
+  const da = parseData(a.data_emissao);
+  const db_ = parseData(b.data_emissao);
+  if (da && db_ && da !== db_) return true;
+  const ca = String(a.cnpj ?? "").replace(/\W/g, "");
+  const cb = String(b.cnpj ?? "").replace(/\W/g, "");
+  return !!(ca && cb && ca !== cb);
+}
+
+/**
+ * Print/foto praticamente igual a outro (salvo de novo, reenviado pelo WhatsApp…) e cujos dados lidos
+ * não se contradizem: possível duplicata. Só compara com arquivos anteriores deste lote ou já lançados.
+ */
+function imagemRepetida(arq: repo.Arquivo, valores: ValoresLinha): string | null {
+  if (!arq.assinatura?.startsWith("img:")) return null;
+  for (const c of repo.arquivosDeImagem(arq.id)) {
+    if (distanciaVisual(arq.assinatura.slice(4), c.assinatura.slice(4)) > DISTANCIA_VISUAL_MAXIMA) continue;
+    const antesNoLote = c.lote_id === arq.lote_id && (c.criado_em < arq.criado_em || (c.criado_em === arq.criado_em && c.id < arq.id));
+    const lancado = repo.lancamentoDoHashArquivo(c.hash);
+    if (!antesNoLote && !lancado) continue;
+    const docs = repo.valoresDosDocumentosDoArquivo(c.id);
+    if (docs.length && docs.every((d) => contradizem(valores, d))) continue;
+    return lancado
+      ? `Imagem praticamente igual a “${c.nome}”, já lançada (lote ${lancado.lote_id}) — possível duplicata.`
+      : `Imagem praticamente igual a “${c.nome}”, deste lote — possível duplicata.`;
+  }
+  return null;
 }
 
 // ---------------- Processamento ----------------
@@ -248,6 +311,9 @@ export async function reavaliarDocumentos(docIds: string[]) {
         }
       }
     }
+
+    // 1b) Print/foto salvo de novo
+    if (!motivo && arq) motivo = imagemRepetida(arq, v0);
 
     // 2) Duplicata do que já está na planilha
     const extras: Problema[] = [];

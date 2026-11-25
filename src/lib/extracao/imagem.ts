@@ -59,3 +59,47 @@ export async function gerarPrevia(conteudo: Uint8Array, tipo: TipoArquivo): Prom
   const img = await prepararImagem(conteudo, tipo);
   return sharp(img.dados).resize({ width: 1400, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
 }
+
+/**
+ * "Impressão digital" visual da imagem: em 32x32 tons de cinza (com leve desfoque), para cada
+ * pixel, se o vizinho da direita é mais claro, mais escuro ou igual (zona morta de 4 níveis,
+ * que ignora o ruído de compressão). Imagens iguais salvas de novo (JPEG, WhatsApp, reduzidas)
+ * ficam com até ~5% de diferença; prints diferentes, bem acima disso.
+ * ATENÇÃO: o mesmo layout com outro valor também fica parecido — por isso a assinatura visual
+ * só indica duplicata quando os dados lidos não se contradizem (ver processamento).
+ */
+export async function assinaturaImagem(conteudo: Uint8Array, tipo: TipoArquivo): Promise<string> {
+  let entrada: Buffer = Buffer.from(conteudo);
+  if (tipo === "heic") {
+    entrada = Buffer.from(await heicConvert({ buffer: new Uint8Array(entrada), format: "JPEG", quality: 0.9 }));
+  }
+  const n = 32;
+  const zona = 4;
+  const px = await sharp(entrada, { failOn: "none" })
+    .rotate()
+    .flatten({ background: "#ffffff" })
+    .greyscale()
+    .blur(1)
+    .resize(n + 1, n, { fit: "fill" })
+    .raw()
+    .toBuffer();
+  let s = "";
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const d = px[y * (n + 1) + x] - px[y * (n + 1) + x + 1];
+      s += d > zona ? "1" : d < -zona ? "2" : "0";
+    }
+  }
+  return s;
+}
+
+/** Fração (0 a 1) de posições diferentes entre duas assinaturas visuais. */
+export function distanciaVisual(a: string, b: string): number {
+  if (!a || a.length !== b.length) return 1;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d / a.length;
+}
+
+/** Até esta distância, duas imagens são consideradas "a mesma imagem salva de novo". */
+export const DISTANCIA_VISUAL_MAXIMA = 0.08;

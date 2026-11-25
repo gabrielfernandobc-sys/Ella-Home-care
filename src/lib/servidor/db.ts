@@ -11,7 +11,7 @@ export function pastaDados(): string {
   return path.resolve(/*turbopackIgnore: true*/ process.env.DADOS_DIR || path.join(process.cwd(), "data"));
 }
 
-const MIGRACOES: string[] = [
+export const MIGRACOES: string[] = [
   `
   CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL);
 
@@ -138,6 +138,11 @@ const MIGRACOES: string[] = [
     SELECT campo, campo, de, para, 'usuaria', usos, criado_em FROM depara;
   DROP TABLE depara;
   ALTER TABLE depara_v2 RENAME TO depara;
+  `,
+  // 3) Fase 2: assinatura do conteúdo do arquivo (texto do PDF ou "impressão digital" da imagem).
+  `
+  ALTER TABLE arquivos ADD COLUMN assinatura TEXT;
+  CREATE INDEX IF NOT EXISTS arquivos_assinatura ON arquivos(assinatura);
   `,
 ];
 
