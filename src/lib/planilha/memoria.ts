@@ -125,10 +125,8 @@ export class PlanilhaMemoria implements AdaptadorPlanilha {
       while (aba.celulas.length <= cel.linha) aba.celulas.push([]);
       const linha = aba.celulas[cel.linha];
       while (linha.length < cel.coluna) linha.push("");
-      let v = cel.valor;
-      if (typeof v === "string" && v.startsWith("'")) v = v.slice(1);
-      else if (typeof v === "string" && /^-?\d+([.,]\d+)?$/.test(v)) v = Number(v.replace(",", "."));
-      linha[cel.coluna] = v;
+      // "texto" e "numero" ficam exatamente como vieram (como o modo RAW do Google).
+      linha[cel.coluna] = cel.valor;
     }
   }
 

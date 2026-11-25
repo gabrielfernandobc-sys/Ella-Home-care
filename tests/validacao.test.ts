@@ -104,7 +104,7 @@ describe("validarDocumento", () => {
 
   it("leitura incerta da IA vira aviso só nos campos mapeados", () => {
     const l = linha({}, { valor_unitario: "media", observacoes: "baixa" });
-    l.valores = { ...l.valores, observacoes: "texto" } as never;
+    l.valores = { ...(l.valores as object), observacoes: "texto" } as never;
     const [p] = validarDocumento([l], {}, { ...opcoes, camposMapeados: ["valor_unitario", "descricao"] });
     expect(p.map((x) => x.mensagem)).toEqual(["Leitura incerta: Valor unitário."]);
   });

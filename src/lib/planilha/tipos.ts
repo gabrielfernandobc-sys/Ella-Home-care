@@ -25,6 +25,11 @@ export interface Celula {
   linha: number;
   coluna: number;
   valor: string | number;
+  /**
+   * "texto" e "numero" são gravados como estão (nunca viram fórmula, data ou porcentagem);
+   * "data" e "formula" são gravados como se fossem digitados.
+   */
+  tipo: "texto" | "numero" | "data" | "formula";
 }
 
 export interface AdaptadorPlanilha {

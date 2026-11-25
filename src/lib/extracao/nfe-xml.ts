@@ -31,7 +31,10 @@ const FORMAS_PAGAMENTO: Record<string, string> = {
 
 export class ErroXml extends Error {}
 
-const lista = <T>(v: T | T[] | undefined): T[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+/** Nó do XML já convertido em objeto. */
+type No = { [chave: string]: unknown };
+const no = (v: unknown): No => (v && typeof v === "object" ? (v as No) : {});
+const lista = (v: unknown): No[] => (v === undefined || v === null ? [] : Array.isArray(v) ? v.map(no) : [no(v)]);
 const num = (v: unknown): number | null => {
   if (v === undefined || v === null || v === "") return null;
   const n = Number(String(v).trim());
@@ -79,18 +82,19 @@ export function lerXmlNfe(conteudo: string): DocumentoExtraido {
     }
     return undefined;
   };
-  const inf = procurar(raiz, "infNFe") as Record<string, any> | undefined;
-  if (!inf) throw new ErroXml("Não encontrei os dados da nota (infNFe) neste XML.");
+  const achado = procurar(raiz, "infNFe");
+  if (!achado || typeof achado !== "object") throw new ErroXml("Não encontrei os dados da nota (infNFe) neste XML.");
+  const inf = no(achado);
 
-  const ide = inf.ide ?? {};
-  const emit = inf.emit ?? {};
-  const tot = inf.total?.ICMSTot ?? {};
+  const ide = no(inf.ide);
+  const emit = no(inf.emit);
+  const tot = no(no(inf.total).ICMSTot);
   const idAttr = txt(inf["@Id"]) ?? "";
   const chProt = txt(procurar(raiz, "chNFe"));
   const chave = (chProt ?? idAttr.replace(/^NFe/, "")).replace(/\D/g, "") || null;
 
-  const itens: ItemExtraido[] = lista(inf.det).map((det: any) => {
-    const p = det.prod ?? {};
+  const itens: ItemExtraido[] = lista(inf.det).map((det) => {
+    const p = no(det.prod);
     const descricao = txt(p.xProd);
     const sug = categoriaPorNcm(txt(p.NCM)) ?? categoriaPorTexto(descricao);
     return {
@@ -117,8 +121,9 @@ export function lerXmlNfe(conteudo: string): DocumentoExtraido {
   // Tudo que entra no total além dos produtos (frete, seguro, impostos, outras despesas).
   const acrescimos = vNF !== null && vProd !== null ? arredondar(vNF - vProd + vDesc) : num(tot.vFrete);
 
-  const pagamentos = lista(inf.pag?.detPag ?? inf.pag)
-    .map((d: any) => FORMAS_PAGAMENTO[txt(d?.tPag) ?? ""] ?? null)
+  const pag = no(inf.pag);
+  const pagamentos = lista(pag.detPag ?? (pag.tPag ? pag : undefined))
+    .map((d) => FORMAS_PAGAMENTO[txt(d.tPag) ?? ""] ?? null)
     .filter(Boolean) as string[];
 
   const cnpj = txt(emit.CNPJ);

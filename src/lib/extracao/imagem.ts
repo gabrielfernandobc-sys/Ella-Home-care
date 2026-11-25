@@ -34,8 +34,8 @@ const TAMANHO_MAXIMO = 3_500_000; // bytes; a API aceita até 5 MB por imagem
 export async function prepararImagem(conteudo: Uint8Array, tipo: TipoArquivo): Promise<ImagemPreparada> {
   let entrada: Buffer = Buffer.from(conteudo);
   if (tipo === "heic") {
-    const convertido = await heicConvert({ buffer: entrada as unknown as ArrayBufferLike, format: "JPEG", quality: 0.9 });
-    entrada = Buffer.from(convertido as ArrayBuffer);
+    const convertido = await heicConvert({ buffer: new Uint8Array(entrada), format: "JPEG", quality: 0.9 });
+    entrada = Buffer.from(convertido);
   }
   const base = sharp(entrada, { failOn: "none" })
     .rotate()

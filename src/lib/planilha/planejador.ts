@@ -111,7 +111,7 @@ export function planejarAcrescimo(params: {
       if (!campo || proibidas.has(coluna)) return;
       const v = valorParaCelula(campo as CampoId, valores[campo as CampoId], params.localidade);
       if (v === null) return;
-      cels.push({ linha, coluna, valor: v });
+      cels.push({ linha, coluna, valor: v.valor, tipo: v.tipo });
     });
     return cels;
   });
@@ -154,7 +154,7 @@ export function formulasParaEstender(
       const comeca = intervalos(f).some((iv) => iv.inicio <= primeiraLinhaDados);
       if (!comeca) return;
       const novo = estender(f);
-      if (novo !== f) out.push({ linha: r, coluna: c, valor: novo });
+      if (novo !== f) out.push({ linha: r, coluna: c, valor: novo, tipo: "formula" });
     });
   }
   return out;

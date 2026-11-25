@@ -75,8 +75,7 @@ describe("acrescentar sem sobrescrever", () => {
     expect(c[4][5]).toBe("=D5*E5");
     expect(c[5][5]).toBe("=D6*E6");
     // Texto que parecia fórmula foi gravado como texto.
-    expect(c[5][2]).toBe('=HYPERLINK("http://exemplo.invalid")'.replace(/^/, "")); // armazenado sem o apóstrofo
-    expect(typeof c[5][2]).toBe("string");
+    expect(c[5][2]).toBe(`'=HYPERLINK("http://exemplo.invalid")`);
     // Linha de totais desceu e passou a somar as novas linhas.
     expect(c[6][0]).toBe("TOTAL");
     expect(c[6][5]).toBe("=SOMA(F2:F6)");
@@ -157,6 +156,6 @@ describe("fórmulas", () => {
     expect(ehLinhaDeTotais(["", "", "=SOMA(F2:F4)"], 5)).toBe(true);
     // Soma horizontal na própria linha não é linha de totais.
     expect(ehLinhaDeTotais(["01/11/2026", "Item", "=SOMA(C3:E3)"], 3)).toBe(false);
-    expect(ehLinhaDeTotais(["Total Distribuidora (nome de empresa)", "Item", 10], 3)).toBe(false);
+    expect(ehLinhaDeTotais(["Total Distribuidora (nome de empresa)", "Item", "10"], 3)).toBe(false);
   });
 });

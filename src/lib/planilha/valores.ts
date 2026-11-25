@@ -2,39 +2,43 @@ import { CAMPO_POR_ID, type CampoId } from "../campos";
 import { formatarCnpj } from "../cnpj";
 import { dataParaBR, parseData, parseNumero } from "../texto";
 
+export interface ValorCelula {
+  valor: string | number;
+  tipo: "texto" | "numero" | "data";
+}
+
 /**
- * Converte um valor do app para o que será "digitado" na célula.
- * - Datas: DD/MM/AAAA em planilhas pt_BR, AAAA-MM-DD nas demais.
+ * Converte um valor do app para o que será gravado na célula.
+ * - Datas: DD/MM/AAAA em planilhas pt_BR, AAAA-MM-DD nas demais (gravadas como data).
  * - Números: number (a formatação da coluna é preservada).
- * - Textos que começam com = + - @ ganham apóstrofo para nunca virarem fórmula.
- * - Sequências longas de dígitos (chave de acesso) ganham apóstrofo para não virarem notação científica.
+ * - Textos: gravados literalmente — "=SOMA(...)", "1/2" ou "10%" nunca viram fórmula, data ou número,
+ *   e zeros à esquerda e chaves de 44 dígitos são preservados.
  */
 export function valorParaCelula(
   campo: CampoId,
   valor: string | number | null | undefined,
   localidade = "pt_BR",
-): string | number | null {
+): ValorCelula | null {
   if (valor === null || valor === undefined || valor === "") return null;
   const def = CAMPO_POR_ID[campo];
   if (def.tipo === "data") {
     const iso = parseData(valor);
-    if (!iso) return textoSeguro(String(valor));
-    return localidade.toLowerCase().startsWith("pt") ? dataParaBR(iso) : iso;
+    if (!iso) return { valor: textoLimpo(String(valor)), tipo: "texto" };
+    return { valor: localidade.toLowerCase().startsWith("pt") ? dataParaBR(iso) : iso, tipo: "data" };
   }
   if (def.tipo === "moeda" || def.tipo === "numero") {
     const n = parseNumero(valor);
-    return n === null ? textoSeguro(String(valor)) : n;
+    return n === null ? { valor: textoLimpo(String(valor)), tipo: "texto" } : { valor: n, tipo: "numero" };
   }
-  if (campo === "cnpj") return textoSeguro(formatarCnpj(String(valor)));
-  return textoSeguro(String(valor));
+  if (campo === "cnpj") return { valor: textoLimpo(formatarCnpj(String(valor))), tipo: "texto" };
+  const t = textoLimpo(String(valor));
+  return t ? { valor: t, tipo: "texto" } : null;
 }
 
-export function textoSeguro(s: string): string {
-  const t = s.replace(/[\r\n\t]+/g, " ").trim();
-  if (/^[=+\-@]/.test(t)) return "'" + t;
-  if (/^\d{16,}$/.test(t)) return "'" + t;
-  if (/^0\d+$/.test(t)) return "'" + t; // preserva zeros à esquerda
-  return t;
+export function textoLimpo(s: string): string {
+  const t = s.replace(/[\r\n\t]+/g, " ").replace(/[\u0000-\u001f]/g, "").trim();
+  // Um texto que começa com "=" seria confundido com fórmula ao reler a planilha.
+  return t.startsWith("=") ? "'" + t : t;
 }
 
 /** Número de série de data das planilhas (dias desde 30/12/1899). */
@@ -52,7 +56,7 @@ export function confere(escrito: string | number, lido: string | null | undefine
     const n = Number(l);
     return l !== "" && Number.isFinite(n) && Math.abs(n - escrito) < 0.005;
   }
-  const e = escrito.startsWith("'") ? escrito.slice(1) : escrito;
+  const e = escrito;
   if (e.trim() === l) return true;
   const iso = parseData(e);
   if (iso && /^\d+(\.\d+)?$/.test(l)) return Math.floor(Number(l)) === serialDeData(iso);

@@ -5,7 +5,7 @@
  * PDF escaneado, foto ou print -> IA com visão
  */
 import { categoriaPorTexto } from "./categoria";
-import { extrairComIA, ErroIA } from "./ia";
+import { extrairComIA, ErroIA, iaConfigurada } from "./ia";
 import { detectarTipo, prepararImagem, type TipoArquivo } from "./imagem";
 import { ehXmlNfe, ErroXml, lerXmlNfe } from "./nfe-xml";
 import { lerTextoPdf } from "./pdf";
@@ -65,7 +65,10 @@ export async function extrairArquivo(conteudo: Uint8Array, nome: string): Promis
       return finalizar(tipo, "visao", r);
     }
     if (tipo === "png" || tipo === "jpeg" || tipo === "heic" || tipo === "webp" || tipo === "gif") {
-      const img = await prepararImagem(conteudo, tipo);
+      if (!iaConfigurada()) await extrairComIA({ tipo: "texto", texto: "", origem: "pdf" }); // lança o erro da chave
+      const img = await prepararImagem(conteudo, tipo).catch(() => {
+        throw new ErroExtracao("Não consegui abrir esta imagem (arquivo corrompido ou formato não suportado).");
+      });
       const r = await extrairComIA({ tipo: "imagem", base64: img.dados.toString("base64"), mime: img.mime });
       return finalizar(tipo, "visao", r);
     }
