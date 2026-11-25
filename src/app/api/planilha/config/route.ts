@@ -35,6 +35,8 @@ export async function PUT(req: Request) {
       comprovantesAtivo: !!c.comprovantesAtivo,
       pastaComprovantes: (c.pastaComprovantes || "Notas").trim(),
       aprovarVerdesAutomaticamente: !!c.aprovarVerdesAutomaticamente,
+      alertaPrecoAtivo: c.alertaPrecoAtivo !== false,
+      alertaPrecoPercentual: Math.min(500, Math.max(5, Math.round(Number(c.alertaPrecoPercentual) || 30))),
     };
     salvarConfigPlanilha(final);
     limparCachePlanilha();

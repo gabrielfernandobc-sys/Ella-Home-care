@@ -57,6 +57,16 @@ Você arrasta as notas (PDF, foto, XML ou print). O app lê os dados e mostra tu
 - **Rastreia tudo:** cada linha guarda o arquivo de origem e o ID do lote. Errou? **"Desfazer último lote"** remove só as linhas daquele lote.
 - **Opcional — comprovantes no Google Drive:** guarda o arquivo original em `Notas/AAAA-MM`, pelo mês da nota, e põe o link na coluna "Comprovante".
 - **Opcional — aprovar verdes automaticamente** (desligado por padrão): as linhas em que tudo conferiu já chegam aprovadas. Lançar continua sendo um clique seu.
+- **Avisa preço fora do padrão:** compara o preço unitário de cada item com as compras anteriores do mesmo item na planilha (mediana dos últimos 12 meses, pelo menos 3 compras).
+  - Acima de 30% (configurável) a linha fica amarela.
+  - Muito abaixo também, porque costuma ser unidade trocada (caixa × unidade).
+  - O valor nunca é alterado.
+- **Relatórios** (menu "Relatórios"), lidos da própria planilha, inclusive do que foi lançado à mão:
+  - total do mês e comparação com o mês anterior;
+  - gastos por categoria e por fornecedor;
+  - evolução dos últimos 6 meses;
+  - lista das compras com preço fora do padrão;
+  - exportação em **Excel** e impressão em **PDF**.
 
 ### Regras que o app nunca quebra
 
@@ -183,15 +193,16 @@ Colunas com **fórmula** aparecem com 🔒 e nunca recebem dados. Para cada linh
 
 **Dica:** se a planilha tiver colunas **"Arquivo de origem"** e **"Lote"**, cada linha lançada fica rastreável até o documento. Vale a pena criar essas duas colunas.
 
-**Opções (Passo 5 da tela), as duas desligadas por padrão:**
+**Opções (Passo 5 da tela):**
 
-- **Guardar os comprovantes no Google Drive.**
+- **Guardar os comprovantes no Google Drive** (desligado por padrão).
   1. Crie uma coluna **"Comprovante"** na planilha e leia as colunas de novo.
   2. Marque a opção e clique em **Autorizar Google Drive**.
   3. Volte e salve.
 
   Ao lançar, o app guarda o arquivo original em `Notas/AAAA-MM` e põe o link na coluna. Se o Drive falhar, **nada** é lançado; tente de novo. "Desfazer último lote" não apaga os arquivos do Drive.
-- **Aprovar automaticamente as linhas verdes.** As linhas verdes já chegam com a caixinha marcada ("auto"). Você continua revisando as amarelas e vermelhas, e é você quem clica em "Lançar". Se desmarcar uma linha, o app não marca de novo.
+- **Aprovar automaticamente as linhas verdes** (desligado por padrão). As linhas verdes já chegam com a caixinha marcada ("auto"). Você continua revisando as amarelas e vermelhas, e é você quem clica em "Lançar". Se desmarcar uma linha, o app não marca de novo.
+- **Avisar preço fora do padrão** (ligado por padrão). Escolha a partir de quantos % acima do normal o app avisa (30% de início). É só um aviso: o valor lido nunca é mudado.
 
 ---
 
@@ -205,6 +216,7 @@ Colunas com **fórmula** aparecem com 🔒 e nunca recebem dados. Para cada linh
 6. Marque **Mostrar só o que precisa conferir**. Para cada linha amarela ou vermelha, olhe o documento ao lado, corrija a célula se precisar e marque a caixinha de aprovar.
 7. Clique em **Lançar na planilha**. O app informa em quais linhas os dados entraram.
 8. Errou? Na tela inicial, clique em **Desfazer último lote**. Por segurança, ele só desfaz se as linhas continuarem exatamente como foram gravadas.
+9. No fim do mês, abra **Relatórios**, escolha o mês e clique em **Baixar em Excel** ou **Imprimir / salvar PDF** para mandar o resumo para quem precisar.
 
 ---
 
@@ -229,6 +241,7 @@ A pasta `exemplos/` também tem uma **`planilha-modelo.xlsx`** fictícia. Para c
 | Imagem do print/foto ou PDF escaneado | **Anthropic (IA Claude)**, para ler os dados | Ao processar o arquivo |
 | Texto de PDFs com texto, já **sem CPF e nome de paciente** | **Anthropic (IA Claude)** | Ao processar o arquivo |
 | XML de NF-e | **Não sai do computador** (lido localmente) | Nunca |
+| Relatórios (Excel/PDF) | Gerados **neste computador** e salvos onde você escolher | Quando você clica em "Baixar" ou "Imprimir" |
 | Arquivo original da nota (só se você ligar os comprovantes), **inteiro**: se tiver dado de paciente, ele vai junto | **Seu Google Drive**, pasta `Notas/AAAA-MM` | Quando você clica em "Lançar" |
 
 - O **nome do arquivo não é enviado** à IA.
@@ -287,6 +300,9 @@ src/lib/campos.ts            campos que o app extrai/lança
 src/lib/mapeamento.ts        proposta "cabeçalho -> campo"
 src/lib/validacao.ts         validações (soma, CNPJ, data, obrigatórios)
 src/lib/duplicatas.ts        chaves de duplicata e hashes (idempotência)
+src/lib/depara.ts            aprendizado do de/para (exato, parecido, CNPJ, categoria)
+src/lib/relatorios.ts        resumo mensal a partir da planilha
+src/lib/precos.ts            alerta de preço fora do padrão
 src/lib/planilha/            planejador "acrescentar sem sobrescrever", Google Sheets e planilha em memória
 src/lib/extracao/            XML NF-e, PDF, imagem, IA, privacidade
 src/lib/servidor/            banco, fila, processamento, lançar/desfazer, OAuth
@@ -300,8 +316,8 @@ exemplos/                    arquivos 100% fictícios
 ### Fases
 
 - **Fase 1 (MVP):** conectar planilha, enviar em lote, extrair, validar, detectar duplicatas, revisar, lançar, rastrear e desfazer.
-- **Fase 2 (esta versão):** aprendizado do de/para (aproximação segura, fornecedor por CNPJ, categoria por item, regras que ganham confiança), deduplicação avançada (PDF salvo de novo, print reenviado, fornecedor + data + valor, soma por nota na planilha), comprovantes no Drive (`Notas/AAAA-MM`) com link na planilha, e "aprovar verdes automaticamente" (desligado por padrão).
-- **Fase 3:** resumo mensal por categoria e fornecedor, alerta de preço fora do padrão e exportação de relatório.
+- **Fase 2:** aprendizado do de/para (aproximação segura, fornecedor por CNPJ, categoria por item, regras que ganham confiança), deduplicação avançada (PDF salvo de novo, print reenviado, fornecedor + data + valor, soma por nota na planilha), comprovantes no Drive (`Notas/AAAA-MM`) com link na planilha, e "aprovar verdes automaticamente" (desligado por padrão).
+- **Fase 3 (esta versão):** resumo mensal por categoria e fornecedor (com comparação ao mês anterior e evolução de 6 meses), alerta de preço fora do padrão (na revisão e no relatório) e exportação do relatório em Excel e PDF.
 - **Excel (.xlsx / OneDrive):** previsto. A lógica de mapeamento e acréscimo já é separada da planilha (interface `AdaptadorPlanilha`), para receber um adaptador de Excel.
 
 ---

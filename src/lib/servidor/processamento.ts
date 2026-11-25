@@ -12,11 +12,13 @@ import { assinaturaTexto, lerTextoPdf } from "../extracao/pdf";
 import { parseData, parseNumero } from "../texto";
 import { CAMPOS_DEPARA, explicarDePara, fornecedoresPorCnpj, TabelaDePara } from "../depara";
 import { camposDoDocumento, documentoParaLinhas } from "../linhas";
+import { alertaDePreco, LIMITE_ACIMA_PADRAO, type HistoricoPrecos } from "../precos";
 import { corDaLinha, validarDocumento, type Problema } from "../validacao";
 import { adaptadorPara } from "./adaptador";
 import { caminhoPara, salvarBytes } from "./armazenamento";
 import { lerConfigPlanilha, type ConfigPlanilha } from "./config";
 import { agora, transacao } from "./db";
+import { historicoDePrecos, limparCacheRegistros } from "./relatorios";
 import * as repo from "./repositorio";
 
 // ---------------- Recebimento ----------------
@@ -240,6 +242,7 @@ const TTL = 2 * 60 * 1000;
 
 export function limparCachePlanilha() {
   cachePlanilha.clear();
+  limparCacheRegistros();
 }
 
 /**
@@ -354,9 +357,28 @@ export async function reavaliarDocumentos(docIds: string[]) {
       });
     }
 
+    // 4) Fase 3: preço fora do padrão (comparado com o histórico da planilha). Só aviso; nunca muda valor.
+    let historico: HistoricoPrecos | null = null;
+    if (cfg && cfg.granularidade === "item" && cfg.alertaPrecoAtivo !== false) {
+      historico = await historicoDePrecos(cfg).catch(() => null);
+    }
+    const alertasPreco = linhas.map((l) => {
+      if (!historico) return null;
+      const q = parseNumero(l.valores.quantidade);
+      const t = parseNumero(l.valores.valor_total_item);
+      const unitario = parseNumero(l.valores.valor_unitario) ?? (q && t !== null ? t / q : null);
+      return alertaDePreco(
+        { descricao: l.valores.descricao, unidade: l.valores.unidade, unitario, data: parseData(l.valores.data_emissao) },
+        historico,
+        cfg?.alertaPrecoPercentual ?? LIMITE_ACIMA_PADRAO,
+      );
+    });
+
     linhas.forEach((l, i) => {
       if (l.lancada) return;
       const p = [...extras, ...problemas[i]];
+      const alerta = alertasPreco[i];
+      if (alerta) p.push({ campo: "valor_unitario", nivel: "aviso", mensagem: alerta.mensagem });
       // Correções do de/para: regra confiável vira só uma nota; as demais pedem conferência.
       const confiaveis = l.depara.filter((d) => d.confiavel);
       const conferir = l.depara.filter((d) => !d.confiavel);
