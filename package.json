@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "node scripts/iniciar-servidor.mjs",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "exemplos": "tsx scripts/gerar-exemplos.ts"

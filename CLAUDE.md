@@ -46,7 +46,7 @@ npm ci                 # instalar
 npm run dev            # desenvolvimento (127.0.0.1:3000)
 npm test               # testes (vitest)
 npm run lint           # eslint
-npm run typecheck      # tsc --noEmit
+npm run typecheck      # gera os tipos de rota do Next (next typegen) e roda tsc --noEmit
 npm run build          # build de produção
 npm start              # produção local; abre o navegador (NAO_ABRIR_NAVEGADOR=1 para não abrir)
 npm run exemplos       # regera /exemplos (fictícios)
