@@ -7,7 +7,8 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 export function pastaDados(): string {
-  return path.resolve(process.env.DADOS_DIR || path.join(process.cwd(), "data"));
+  // App local: a pasta de dados fica ao lado do app (não é um deploy na nuvem).
+  return path.resolve(/*turbopackIgnore: true*/ process.env.DADOS_DIR || path.join(process.cwd(), "data"));
 }
 
 const MIGRACOES: string[] = [

@@ -116,10 +116,12 @@ export function lerXmlNfe(conteudo: string): DocumentoExtraido {
   });
 
   const vNF = num(tot.vNF);
-  const vProd = num(tot.vProd);
   const vDesc = num(tot.vDesc) ?? 0;
-  // Tudo que entra no total além dos produtos (frete, seguro, impostos, outras despesas).
-  const acrescimos = vNF !== null && vProd !== null ? arredondar(vNF - vProd + vDesc) : num(tot.vFrete);
+  // Tudo que entra no total além dos produtos, lido campo a campo (nunca deduzido do total),
+  // para que uma nota com total inconsistente apareça como "soma não bate".
+  const acrescimos = arredondar(
+    ["vFrete", "vSeg", "vOutro", "vST", "vFCPST", "vIPI", "vIPIDevol", "vII"].reduce((s, k) => s + (num(tot[k]) ?? 0), 0),
+  );
 
   const pag = no(inf.pag);
   const pagamentos = lista(pag.detPag ?? (pag.tPag ? pag : undefined))
@@ -136,7 +138,7 @@ export function lerXmlNfe(conteudo: string): DocumentoExtraido {
     numero_nota: txt(ide.nNF),
     chave_acesso: chave,
     total_nota: vNF,
-    valor_frete: acrescimos,
+    valor_frete: acrescimos || null,
     valor_desconto: vDesc || null,
     forma_pagamento: [...new Set(pagamentos)].join(" + ") || null,
     centro_custo: null,

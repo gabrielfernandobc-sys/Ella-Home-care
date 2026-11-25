@@ -118,3 +118,17 @@ describe("linhas", () => {
     expect(l[0].valores.categoria).toBe("medicamento");
   });
 });
+
+describe("XML com total inconsistente", () => {
+  it("não esconde a diferença (fica amarelo)", () => {
+    const xml = montarXmlNfe(NOTAS[2]).replace(/<vNF>[\d.]+<\/vNF>/, "<vNF>999.99</vNF>");
+    const d = lerXmlNfe(xml);
+    const linhas = documentoParaLinhas(d, { granularidade: "item", arquivo: "x.xml", loteId: "L" });
+    const p = validarDocumento(linhas, { frete: d.valor_frete, desconto: d.valor_desconto }, {
+      hoje: "2026-11-25",
+      obrigatorios: [],
+      granularidade: "item",
+    });
+    expect(p[0].some((x) => /soma dos itens/i.test(x.mensagem))).toBe(true);
+  });
+});
