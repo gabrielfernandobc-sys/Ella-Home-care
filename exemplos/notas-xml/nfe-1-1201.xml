@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe35261111222333000181550010000012011000012018" versao="4.00">
+      <ide>
+        <cUF>35</cUF>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>1201</nNF>
+        <dhEmi>2026-11-03T10:15:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>11222333000181</CNPJ>
+        <xNome>Distribuidora Hospitalar Alfa Exemplo Ltda</xNome>
+      </emit>
+      <dest>
+        <CNPJ>00000000000000</CNPJ>
+        <xNome>DESTINATARIO FICTICIO</xNome>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>1000</cProd>
+          <xProd>LUVA PROCED LATEX M C/100</xProd>
+          <NCM>40151900</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>CX</uCom>
+          <qCom>10.0000</qCom>
+          <vUnCom>32.9000000000</vUnCom>
+          <vProd>329.00</vProd>
+        </prod>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>1001</cProd>
+          <xProd>SERINGA DESC 5ML S/AGULHA</xProd>
+          <NCM>90183119</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>200.0000</qCom>
+          <vUnCom>0.3800000000</vUnCom>
+          <vProd>76.00</vProd>
+        </prod>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>1002</cProd>
+          <xProd>GAZE ESTERIL 7,5X7,5 PCT C/10</xProd>
+          <NCM>30059090</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>PCT</uCom>
+          <qCom>50.0000</qCom>
+          <vUnCom>1.7500000000</vUnCom>
+          <vProd>87.50</vProd>
+        </prod>
+      </det>
+      <total>
+        <ICMSTot>
+          <vProd>492.50</vProd>
+          <vFrete>12.50</vFrete>
+          <vDesc>0.00</vDesc>
+          <vNF>505.00</vNF>
+        </ICMSTot>
+      </total>
+      <pag><detPag><tPag>15</tPag><vPag>505.00</vPag></detPag></pag>
+      <infAdic><infCpl>Paciente: NOME FICTICIO - nao deve ser lido</infCpl></infAdic>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00"><infProt><chNFe>35261111222333000181550010000012011000012018</chNFe></infProt></protNFe>
+</nfeProc>

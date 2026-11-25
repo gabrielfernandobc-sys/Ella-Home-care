@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe35261122333444000181550010000883421000883425" versao="4.00">
+      <ide>
+        <cUF>35</cUF>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>88342</nNF>
+        <dhEmi>2026-11-05T10:15:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>22333444000181</CNPJ>
+        <xNome>Farmácia Beta Fictícia Ltda</xNome>
+      </emit>
+      <dest>
+        <CNPJ>00000000000000</CNPJ>
+        <xNome>DESTINATARIO FICTICIO</xNome>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>1000</cProd>
+          <xProd>DIPIRONA 500MG C/10 CP</xProd>
+          <NCM>30049099</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>CX</uCom>
+          <qCom>20.0000</qCom>
+          <vUnCom>4.5000000000</vUnCom>
+          <vProd>90.00</vProd>
+        </prod>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>1001</cProd>
+          <xProd>PARACETAMOL 750MG C/20 CP</xProd>
+          <NCM>30049099</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>CX</uCom>
+          <qCom>15.0000</qCom>
+          <vUnCom>6.2000000000</vUnCom>
+          <vProd>93.00</vProd>
+        </prod>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>1002</cProd>
+          <xProd>SORO FISIOLOGICO 0,9% 500ML</xProd>
+          <NCM>30049099</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>FR</uCom>
+          <qCom>24.0000</qCom>
+          <vUnCom>5.1000000000</vUnCom>
+          <vProd>122.40</vProd>
+        </prod>
+      </det>
+      <total>
+        <ICMSTot>
+          <vProd>305.40</vProd>
+          <vFrete>0.00</vFrete>
+          <vDesc>3.00</vDesc>
+          <vNF>302.40</vNF>
+        </ICMSTot>
+      </total>
+      <pag><detPag><tPag>17</tPag><vPag>302.40</vPag></detPag></pag>
+      <infAdic><infCpl>Paciente: NOME FICTICIO - nao deve ser lido</infCpl></infAdic>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00"><infProt><chNFe>35261122333444000181550010000883421000883425</chNFe></infProt></protNFe>
+</nfeProc>
