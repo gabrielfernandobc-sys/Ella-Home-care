@@ -144,6 +144,11 @@ export const MIGRACOES: string[] = [
   ALTER TABLE arquivos ADD COLUMN assinatura TEXT;
   CREATE INDEX IF NOT EXISTS arquivos_assinatura ON arquivos(assinatura);
   `,
+  // 4) Fase 2: comprovante guardado (Drive ou pasta local) de cada arquivo.
+  `
+  ALTER TABLE arquivos ADD COLUMN comprovante_id TEXT;
+  ALTER TABLE arquivos ADD COLUMN comprovante_link TEXT;
+  `,
 ];
 
 type Global = { __comprasDb?: DatabaseSync };

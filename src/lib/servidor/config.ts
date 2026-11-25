@@ -21,6 +21,11 @@ export interface ConfigPlanilha {
   colunasFormula: number[];
   obrigatorios: CampoId[];
   diasMaximos: number;
+  /** Fase 2: salvar o arquivo original no Google Drive (Notas/AAAA-MM) e o link na coluna Comprovante */
+  comprovantesAtivo?: boolean;
+  pastaComprovantes?: string;
+  /** Fase 2: aprovar sozinho as linhas verdes (desligado por padrão) */
+  aprovarVerdesAutomaticamente?: boolean;
   atualizadoEm: string;
 }
 
@@ -36,6 +41,9 @@ export function configPadrao(): Omit<ConfigPlanilha, "fonte" | "planilhaId" | "p
     colunasFormula: [],
     obrigatorios: CAMPOS_OBRIGATORIOS_PADRAO,
     diasMaximos: 180,
+    comprovantesAtivo: false,
+    pastaComprovantes: "Notas",
+    aprovarVerdesAutomaticamente: false,
     atualizadoEm: new Date().toISOString(),
   };
 }

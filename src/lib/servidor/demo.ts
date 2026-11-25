@@ -18,7 +18,7 @@ export function estadoInicialDemo(): EstadoPlanilha {
     localidade: "pt_BR",
     abas: [
       { titulo: "Compras", celulas: PLANILHA_MODELO.map((l) => [...l]) },
-      { titulo: "Modelo", celulas: [PLANILHA_MODELO[0].slice(), [], ["TOTAL", "", "", "", "", "", "", "", "", "=SOMA(J2:J2)", "", "", ""]] },
+      { titulo: "Modelo", celulas: [PLANILHA_MODELO[0].slice(), [], ["TOTAL", "", "", "", "", "", "", "", "", "=SOMA(J2:J2)", "", "", "", ""]] },
     ],
   };
 }

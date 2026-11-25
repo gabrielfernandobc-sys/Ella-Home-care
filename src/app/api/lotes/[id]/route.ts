@@ -39,7 +39,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/lotes/[id]">) {
   }));
   const contar = (f: (x: (typeof arquivos)[number]) => boolean) => arquivos.filter(f).length;
   const campos = ((cfg?.mapeamento.filter(Boolean) as CampoId[]) ?? []).filter(
-    (c) => c !== "id_lote" && c !== "arquivo_origem",
+    (c) => CAMPO_POR_ID[c].nivel !== "app",
   );
   return ok({
     lote,

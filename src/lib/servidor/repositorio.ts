@@ -36,6 +36,8 @@ export interface Arquivo {
   apagado_em: string | null;
   /** "txt:<sha256>" (PDF com texto) ou "img:<assinatura visual>" (imagens) */
   assinatura: string | null;
+  comprovante_id?: string | null;
+  comprovante_link?: string | null;
 }
 
 export interface Documento {
@@ -217,6 +219,14 @@ export function valoresDosDocumentosDoArquivo(arquivoId: string): ValoresLinha[]
   return (
     db().prepare("SELECT valores FROM linhas WHERE arquivo_id = ? AND indice = 0").all(arquivoId) as { valores: string }[]
   ).map((r) => JSON.parse(r.valores));
+}
+
+/** Link de comprovante já enviado para um arquivo com este mesmo conteúdo (evita enviar duas vezes). */
+export function comprovanteDoHash(hash: string): { id: string; link: string } | null {
+  const r = db()
+    .prepare("SELECT comprovante_id AS id, comprovante_link AS link FROM arquivos WHERE hash = ? AND comprovante_link IS NOT NULL LIMIT 1")
+    .get(hash) as { id: string; link: string } | undefined;
+  return r ?? null;
 }
 
 export function arquivosPendentes(): Arquivo[] {
