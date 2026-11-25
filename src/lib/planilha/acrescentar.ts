@@ -8,7 +8,7 @@
  */
 import type { ValoresLinha } from "../campos";
 import { letraColuna, type Mapeamento } from "../mapeamento";
-import { estenderIntervalos } from "./formulas";
+import { estenderInicio, estenderIntervalos } from "./formulas";
 import { formulasParaEstender, planejarAcrescimo, type PlanoAcrescimo } from "./planejador";
 import type { AdaptadorPlanilha, Celula, Grade } from "./tipos";
 import { confere } from "./valores";
@@ -55,10 +55,12 @@ export async function acrescentarLinhas(params: {
   }
   try {
     await adaptador.escrever(aba, plano.escritas);
-    if (plano.ajusteIntervalos) {
-      const { fimAntigo, fimNovo } = plano.ajusteIntervalos;
+    if (plano.ajusteIntervalos || plano.ajusteInicio) {
       const meio = await adaptador.lerGrade(aba);
-      formulasAjustadas = formulasParaEstender(meio, plano, (f) => estenderIntervalos(f, fimAntigo, fimNovo));
+      formulasAjustadas = formulasParaEstender(meio, plano, (f) => {
+        if (plano.ajusteIntervalos) return estenderIntervalos(f, plano.ajusteIntervalos.fimAntigo, plano.ajusteIntervalos.fimNovo);
+        return estenderInicio(f, plano.ajusteInicio!.inicioAntigo, plano.ajusteInicio!.inicioNovo);
+      });
       if (formulasAjustadas.length) await adaptador.escrever(aba, formulasAjustadas);
     }
   } catch (e) {

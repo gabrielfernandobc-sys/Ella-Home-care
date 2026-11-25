@@ -168,4 +168,25 @@ describe("fluxo completo", () => {
     expect(nova.cor).toBe("amarelo"); // correção automática sempre pede conferência
     expect(nova.problemas.some((p) => /Corrigido automaticamente/.test(p.mensagem))).toBe(true);
   });
+
+  it("modo uma aba por mês: cria a aba do mês a partir do modelo", async () => {
+    m.demo.PlanilhaDemo.reiniciar();
+    m.db.db().exec("UPDATE lancamentos SET desfeito_em = 'x' WHERE desfeito_em IS NULL; DELETE FROM depara;");
+    const atual = m.cfg.lerConfigPlanilha()!;
+    m.cfg.salvarConfigPlanilha({ ...atual, modoAbas: "mensal", abaModelo: "Modelo", aba: "Modelo", padraoNomeAba: "{MES} {AAAA}" });
+    const lote = m.repo.criarLote("teste", null);
+    await enviar(lote.id, "mensal.xml", m.ex.montarXmlNfe({ ...m.ex.NOTAS[0], numero: "77001" }));
+    aprovarVerdes(lote.id);
+    const r = await m.lanc.lancarLote(lote.id, "teste");
+    expect(r.lancadas).toBe(3);
+    expect(r.abas[0].aba).toBe("Novembro 2026");
+    const p = m.demo.PlanilhaDemo.carregar();
+    const aba = p.estado.abas.find((a) => a.titulo === "Novembro 2026")!;
+    expect(aba.celulas).toHaveLength(6); // cabeçalho + 3 itens + linha vazia + TOTAL
+    expect(aba.celulas[5][0]).toBe("TOTAL");
+    expect(aba.celulas[5][9]).toBe("=SOMA(J2:J5)"); // a soma inclui as linhas novas
+    // A aba modelo continua intacta.
+    expect(p.estado.abas.find((a) => a.titulo === "Modelo")!.celulas).toHaveLength(3);
+    m.cfg.salvarConfigPlanilha(atual);
+  });
 });

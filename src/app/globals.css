@@ -27,24 +27,26 @@ body {
   outline-offset: 2px;
 }
 
-input.celula {
-  width: 100%;
-  min-width: 6rem;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.4rem;
-  font-size: 0.9rem;
-}
-input.celula:hover {
-  border-color: #cbd5e1;
-  background: #ffffffb0;
-}
-input.celula:focus {
-  border-color: #2563eb;
-  background: #fff;
-  outline: none;
-}
-input.celula:disabled {
-  color: #475569;
+@layer components {
+  input.celula {
+    width: 100%;
+    min-width: 6rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.9rem;
+  }
+  input.celula:hover {
+    border-color: #cbd5e1;
+    background: #ffffffb0;
+  }
+  input.celula:focus {
+    border-color: #2563eb;
+    background: #fff;
+    outline: none;
+  }
+  input.celula:disabled {
+    color: #475569;
+  }
 }

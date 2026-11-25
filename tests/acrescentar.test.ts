@@ -159,3 +159,22 @@ describe("fórmulas", () => {
     expect(ehLinhaDeTotais(["Total Distribuidora (nome de empresa)", "Item", "10"], 3)).toBe(false);
   });
 });
+
+describe("aba sem dados com linha de totais", () => {
+  it("a soma volta a começar logo abaixo do cabeçalho", async () => {
+    const p = PlanilhaMemoria.de({
+      Mes: [["Data", "Descrição", "Valor"], [], ["TOTAL", "", "=SOMA(C2:C2)"]],
+    });
+    await acrescentarLinhas({
+      adaptador: p,
+      aba: "Mes",
+      linhaCabecalho: 1,
+      mapeamento: ["data_emissao", "descricao", "valor_total_item"],
+      linhas: [{ descricao: "A", valor_total_item: 1 }, { descricao: "B", valor_total_item: 2 }],
+    });
+    const c = p.estado.abas[0].celulas;
+    expect(c[1].slice(1)).toEqual(["A", 1]);
+    expect(c[2].slice(1)).toEqual(["B", 2]);
+    expect(c[4]).toEqual(["TOTAL", "", "=SOMA(C2:C4)"]);
+  });
+});

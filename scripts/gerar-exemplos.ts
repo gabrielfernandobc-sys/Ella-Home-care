@@ -150,7 +150,7 @@ async function planilha() {
     ["I", "J"].forEach((c) => (ws.getColumn(c).numFmt = '"R$" #,##0.00'));
   };
   preencher(wb.addWorksheet("Compras"), PLANILHA_MODELO);
-  preencher(wb.addWorksheet("Modelo"), [PLANILHA_MODELO[0], ["TOTAL", "", "", "", "", "", "", "", "", "=SUM(J2:J2)", "", "", ""]]);
+  preencher(wb.addWorksheet("Modelo"), [PLANILHA_MODELO[0], [], ["TOTAL", "", "", "", "", "", "", "", "", "=SUM(J2:J2)", "", "", ""]]);
   const buf = await wb.xlsx.writeBuffer();
   escrever("planilha-modelo.xlsx", new Uint8Array(buf as ArrayBuffer));
 }
@@ -164,7 +164,8 @@ function loteGrande(qtd: number) {
       ...base,
       numero: String(50000 + i),
       data: `2026-11-${String((i % 20) + 1).padStart(2, "0")}`,
-      itens: base.itens.map((it, k) => ({ ...it, quantidade: it.quantidade + ((i + k) % 5) })),
+      // Quantidades diferentes em cada nota: nenhuma nota repete CNPJ + data + valor.
+      itens: base.itens.map((it, k) => ({ ...it, quantidade: it.quantidade + i + k })),
     };
     fs.writeFileSync(path.join(pasta, `nfe-${n.numero}.xml`), montarXmlNfe(n));
   }

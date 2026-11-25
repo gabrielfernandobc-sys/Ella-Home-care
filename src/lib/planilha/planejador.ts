@@ -73,6 +73,8 @@ export interface PlanoAcrescimo {
   celulasPorLinha: Celula[][];
   /** Somas que terminavam na última linha de dados (1-based) devem passar a terminar em fimNovo */
   ajusteIntervalos: { fimAntigo: number; fimNovo: number; primeiraLinhaDados: number } | null;
+  /** Aba sem dados: somas que começavam logo abaixo do cabeçalho foram empurradas e devem voltar a começar ali */
+  ajusteInicio: { inicioAntigo: number; inicioNovo: number } | null;
 }
 
 export function planejarAcrescimo(params: {
@@ -130,6 +132,8 @@ export function planejarAcrescimo(params: {
             primeiraLinhaDados: analise.linhaCabecalho + 2,
           }
         : null,
+    ajusteInicio:
+      !temDados && n > 0 ? { inicioAntigo: analise.linhaCabecalho + 2 + n, inicioNovo: analise.linhaCabecalho + 2 } : null,
   };
 }
 
@@ -142,8 +146,8 @@ export function formulasParaEstender(
   plano: PlanoAcrescimo,
   estender: (f: string) => string,
 ): Celula[] {
-  if (!plano.ajusteIntervalos) return [];
-  const { primeiraLinhaDados } = plano.ajusteIntervalos;
+  if (!plano.ajusteIntervalos && !plano.ajusteInicio) return [];
+  const primeiraLinhaDados = plano.ajusteIntervalos?.primeiraLinhaDados ?? plano.ajusteInicio!.inicioAntigo;
   const out: Celula[] = [];
   const linhasAlvo: number[] = [];
   for (let r = 0; r <= plano.analise.linhaCabecalho; r++) linhasAlvo.push(r);

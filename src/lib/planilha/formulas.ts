@@ -92,6 +92,28 @@ export function estenderIntervalos(formula: string, fimAntigo: number, fimNovo: 
     .join("");
 }
 
+/**
+ * Faz intervalos que começavam em "inicioAntigo" passarem a começar em "inicioNovo".
+ * Usado quando a aba ainda não tinha dados: a inserção empurra o intervalo inteiro para baixo.
+ * Ex.: "=SOMA(J5:J5)" com inicioAntigo=5, inicioNovo=2 -> "=SOMA(J2:J5)".
+ */
+export function estenderInicio(formula: string, inicioAntigo: number, inicioNovo: number): string {
+  if (!formula.startsWith("=")) return formula;
+  const partes = formula.split(/("(?:[^"]|"")*")/);
+  return partes
+    .map((p, i) =>
+      i % 2 === 1
+        ? p
+        : p.replace(INTERVALO, (m, c1, l1, c2, l2) => {
+            const ini = Number(l1);
+            const fim = Number(l2);
+            if (ini === inicioAntigo && fim >= ini) return `${c1}${inicioNovo}:${c2}${l2}`;
+            return m;
+          }),
+    )
+    .join("");
+}
+
 const TEXTOS_TOTAL = new Set([
   "total",
   "totais",
