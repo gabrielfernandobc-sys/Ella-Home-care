@@ -30,6 +30,7 @@ export interface LinhaTela {
   duplicada: boolean;
   motivoDuplicata: string | null;
   aprovada: boolean;
+  aprovadaAuto: boolean;
   forcada: boolean;
   editada: boolean;
   lancada: boolean;
@@ -49,7 +50,7 @@ export interface LoteTela {
   campos: CampoTela[];
   progresso: { total: number; naFila: number; processando: number; prontos: number; erros: number; duplicados: number };
   resumo: { verde: number; amarelo: number; vermelho: number; aprovadas: number; lancadas: number };
-  planilha: { nome: string; aba: string; fonte: string } | null;
+  planilha: { nome: string; aba: string; fonte: string; aprovarVerdesAutomaticamente: boolean; comprovantesAtivo: boolean } | null;
 }
 
 export interface Envio {

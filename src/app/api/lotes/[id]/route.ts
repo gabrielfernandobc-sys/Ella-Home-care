@@ -33,6 +33,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/lotes/[id]">) {
     duplicada: l.duplicada,
     motivoDuplicata: l.motivo_duplicata,
     aprovada: l.aprovada,
+    aprovadaAuto: l.aprovada_auto,
     forcada: l.forcada,
     editada: l.editada,
     lancada: l.lancada,
@@ -63,6 +64,14 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/lotes/[id]">) {
       aprovadas: linhas.filter((l) => l.aprovada && !l.lancada).length,
       lancadas: linhas.filter((l) => l.lancada).length,
     },
-    planilha: cfg ? { nome: cfg.planilhaNome, aba: cfg.modoAbas === "mensal" ? `uma aba por mês (${cfg.padraoNomeAba})` : cfg.aba, fonte: cfg.fonte } : null,
+    planilha: cfg
+      ? {
+          nome: cfg.planilhaNome,
+          aba: cfg.modoAbas === "mensal" ? `uma aba por mês (${cfg.padraoNomeAba})` : cfg.aba,
+          fonte: cfg.fonte,
+          aprovarVerdesAutomaticamente: !!cfg.aprovarVerdesAutomaticamente,
+          comprovantesAtivo: !!cfg.comprovantesAtivo,
+        }
+      : null,
   });
 }

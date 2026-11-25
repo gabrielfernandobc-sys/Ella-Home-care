@@ -149,6 +149,11 @@ export const MIGRACOES: string[] = [
   ALTER TABLE arquivos ADD COLUMN comprovante_id TEXT;
   ALTER TABLE arquivos ADD COLUMN comprovante_link TEXT;
   `,
+  // 5) Fase 2: aprovação automática de verdes (e "a usuária desmarcou de propósito").
+  `
+  ALTER TABLE linhas ADD COLUMN aprovada_auto INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE linhas ADD COLUMN desaprovada INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 type Global = { __comprasDb?: DatabaseSync };

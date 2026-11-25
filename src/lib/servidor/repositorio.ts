@@ -66,6 +66,10 @@ export interface Linha {
   duplicada: boolean;
   motivo_duplicata: string | null;
   aprovada: boolean;
+  /** aprovada sozinha por ser verde (opção da fase 2) */
+  aprovada_auto: boolean;
+  /** a usuária desmarcou de propósito: nunca reaprovar sozinho */
+  desaprovada: boolean;
   forcada: boolean;
   editada: boolean;
   hash: string;
@@ -74,7 +78,18 @@ export interface Linha {
 
 type LinhaBruta = Omit<
   Linha,
-  "valores" | "originais" | "confianca" | "depara" | "problemas" | "duplicada" | "aprovada" | "forcada" | "editada" | "lancada"
+  | "valores"
+  | "originais"
+  | "confianca"
+  | "depara"
+  | "problemas"
+  | "duplicada"
+  | "aprovada"
+  | "aprovada_auto"
+  | "desaprovada"
+  | "forcada"
+  | "editada"
+  | "lancada"
 > & {
   valores: string;
   originais: string;
@@ -83,6 +98,8 @@ type LinhaBruta = Omit<
   problemas: string;
   duplicada: number;
   aprovada: number;
+  aprovada_auto: number;
+  desaprovada: number;
   forcada: number;
   editada: number;
   lancada: number;
@@ -98,6 +115,8 @@ function linhaDeBruta(r: LinhaBruta): Linha {
     problemas: JSON.parse(r.problemas),
     duplicada: !!r.duplicada,
     aprovada: !!r.aprovada,
+    aprovada_auto: !!r.aprovada_auto,
+    desaprovada: !!r.desaprovada,
     forcada: !!r.forcada,
     editada: !!r.editada,
     lancada: !!r.lancada,
@@ -349,7 +368,20 @@ export function atualizarLinha(
   campos: Partial<
     Pick<
       Linha,
-      "valores" | "confianca" | "problemas" | "cor" | "duplicada" | "motivo_duplicata" | "aprovada" | "forcada" | "editada" | "hash" | "lancada" | "depara"
+      | "valores"
+      | "confianca"
+      | "problemas"
+      | "cor"
+      | "duplicada"
+      | "motivo_duplicata"
+      | "aprovada"
+      | "aprovada_auto"
+      | "desaprovada"
+      | "forcada"
+      | "editada"
+      | "hash"
+      | "lancada"
+      | "depara"
     >
   >,
 ) {

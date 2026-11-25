@@ -17,7 +17,13 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/linhas/[id]">)
       if (c.aprovada && linha.cor === "vermelho" && !c.forcar) {
         return erro("Esta linha está vermelha (erro ou duplicata). Corrija ou use “Lançar mesmo assim”.");
       }
-      repo.atualizarLinha(id, { aprovada: c.aprovada, forcada: c.aprovada && linha.cor === "vermelho" && !!c.forcar });
+      repo.atualizarLinha(id, {
+        aprovada: c.aprovada,
+        forcada: c.aprovada && linha.cor === "vermelho" && !!c.forcar,
+        // Escolha da usuária: desmarcar impede a aprovação automática de voltar a marcar.
+        aprovada_auto: false,
+        desaprovada: !c.aprovada,
+      });
     }
     return ok({ linha: repo.obterLinha(id) });
   } catch (e) {

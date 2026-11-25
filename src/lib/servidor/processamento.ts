@@ -197,6 +197,8 @@ export async function processarArquivo(arquivoId: string, reenfileirar: (id: str
             duplicada: false,
             motivo_duplicata: null,
             aprovada: false,
+            aprovada_auto: false,
+            desaprovada: false,
             forcada: false,
             editada: false,
             hash: hashLinha(chaves, i, arq.hash),
@@ -366,14 +368,27 @@ export async function reavaliarDocumentos(docIds: string[]) {
       }
       const duplicada = !!motivo;
       const cor = corDaLinha(p, duplicada);
+      // Linha que virou vermelha perde a aprovação (a menos que a usuária tenha forçado).
+      let aprovada = l.aprovada && (cor !== "vermelho" || l.forcada);
+      let aprovadaAuto = l.aprovada_auto && aprovada;
+      // Aprovação automática só vale enquanto a linha estiver verde.
+      if (aprovadaAuto && cor !== "verde") {
+        aprovada = false;
+        aprovadaAuto = false;
+      }
+      // Opção "aprovar verdes automaticamente" (desligada por padrão); nunca reaprova o que a usuária desmarcou.
+      if (cfg?.aprovarVerdesAutomaticamente && cor === "verde" && !aprovada && !l.desaprovada) {
+        aprovada = true;
+        aprovadaAuto = true;
+      }
       repo.atualizarLinha(l.id, {
         problemas: p,
         cor,
         duplicada,
         motivo_duplicata: motivo,
         hash: hashes[i],
-        // Linha que virou vermelha perde a aprovação (a menos que a usuária tenha forçado).
-        aprovada: l.aprovada && (cor !== "vermelho" || l.forcada),
+        aprovada,
+        aprovada_auto: aprovadaAuto,
       });
     });
   }

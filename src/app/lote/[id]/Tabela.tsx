@@ -160,13 +160,20 @@ export function Tabela({
                       ) : l.cor === "vermelho" && !l.forcada ? (
                         <input type="checkbox" disabled title="Corrija ou use “Lançar mesmo assim”" className="w-5 h-5" />
                       ) : (
-                        <input
-                          type="checkbox"
-                          className="w-5 h-5 accent-green-700"
-                          checked={l.aprovada}
-                          onChange={(e) => aoAprovar(l, e.target.checked)}
-                          aria-label="Aprovar linha"
-                        />
+                        <span className="flex flex-col items-center">
+                          <input
+                            type="checkbox"
+                            className="w-5 h-5 accent-green-700"
+                            checked={l.aprovada}
+                            onChange={(e) => aoAprovar(l, e.target.checked)}
+                            aria-label="Aprovar linha"
+                          />
+                          {l.aprovadaAuto && (
+                            <span className="text-[0.65rem] text-green-800" title="Aprovada automaticamente (linha verde)">
+                              auto
+                            </span>
+                          )}
+                        </span>
                       )}
                     </div>
                   </td>
