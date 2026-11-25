@@ -178,6 +178,18 @@ Só é necessária para ler **fotos, prints e PDFs**. XML de NF-e funciona sem e
 
 ---
 
+## Passo 4b: verificar se está tudo certo
+
+Com o app aberto, clique em **Verificar** no menu. A tela confere, com as suas chaves de verdade:
+
+- se o Node.js e a pasta de dados estão ok;
+- se o ID e a chave do Google estão no `.env`, mostrando o endereço de retorno exato para cadastrar no Google Cloud, com botão de copiar;
+- o login com a sua conta Google;
+- se o app consegue abrir a sua planilha (só lê, não grava nada);
+- se a chave da IA funciona: ela lê o print **fictício** `exemplos/prints/print-sistema-compras.png` e o app compara o que foi lido com o que o print realmente contém. Custa alguns centavos de dólar.
+
+Nenhum valor de chave aparece na tela.
+
 ## Passo 5: conectar a planilha
 
 No app, vá em **Planilha**:

@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
   jar.delete("oauth_estado");
   const estado = req.nextUrl.searchParams.get("state");
   const codigo = req.nextUrl.searchParams.get("code");
-  const destino = new URL("/configurar", req.nextUrl.origin);
+  const voltar = jar.get("oauth_voltar")?.value === "/verificar" ? "/verificar" : "/configurar";
+  jar.delete("oauth_voltar");
+  const destino = new URL(voltar, req.nextUrl.origin);
   if (req.nextUrl.searchParams.get("error")) {
     destino.searchParams.set("erro", "Login cancelado.");
     return Response.redirect(destino);
