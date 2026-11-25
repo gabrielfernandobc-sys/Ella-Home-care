@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Apps Script: funções globais chamadas pela tela; testado em tests/apps-script*.test.ts.
+    "apps-script/**",
   ]),
 ]);
 

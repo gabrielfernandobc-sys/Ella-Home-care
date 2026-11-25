@@ -6,6 +6,10 @@ Você arrasta as notas (PDF, foto, XML ou print). O app lê os dados e mostra tu
 
 > O app roda **só no seu computador**: ele não fica na internet e não precisa de servidor.
 
+> 📱 **Quer usar no celular, de graça e sem instalar nada no computador?** Use a
+> [versão gratuita para celular](apps-script/LEIAME.md): funciona dentro da própria planilha do Google, sem servidor,
+> sem Google Cloud e sem chave de IA. É a forma mais simples.
+
 ---
 
 ## Sumário

@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "exemplos": "tsx scripts/gerar-exemplos.ts"
+    "exemplos": "tsx scripts/gerar-exemplos.ts",
+    "apps-script": "node scripts/gerar-apps-script.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",

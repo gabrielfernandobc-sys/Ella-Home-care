@@ -32,6 +32,14 @@ validar → detectar duplicatas → revisar (verde/amarelo/vermelho) → lançar
 10. **Repositório público:** nenhum dado real, nome de instituição, e-mail, chave ou segredo no código, testes ou exemplos.
    Exemplos são 100% fictícios (`src/lib/exemplos/ficticios.ts`, `exemplos/`). Segredos só no `.env` local.
 
+## Versão gratuita para celular (`apps-script/`)
+
+Google Apps Script dentro da planilha da usuária: sem servidor, sem Google Cloud, sem IA paga. XML lido direto; PDF/foto/
+print pelo OCR gratuito do Drive + regras que só aceitam dado verificável (chave de acesso, CNPJ válido, qtd × unitário =
+total); o resto fica vazio + amarelo. Mesmas regras inegociáveis. `src/Logica.js` é pura (testada no Node);
+`src/Servidor.js` usa os serviços do Google. Depois de mudar `src/`, rode `npm run apps-script` e commite `dist/` junto
+(um teste confere). Guia da usuária: `apps-script/LEIAME.md`.
+
 ## Stack
 
 - Next.js 16 (App Router; `proxy.ts` em vez de middleware) + TypeScript + Tailwind v4. Antes de mexer em APIs do Next,

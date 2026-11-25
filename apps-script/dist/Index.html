@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Compras Express</title>
+    <style>
+      :root {
+        --fundo: #f1f5f9; --cartao: #fff; --texto: #0f172a; --suave: #475569; --borda: #cbd5e1;
+        --azul: #1e40af; --verde: #15803d; --verde-f: #dcfce7; --amarelo: #a16207; --amarelo-f: #fef9c3;
+        --vermelho: #b91c1c; --vermelho-f: #fee2e2;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fundo); color: var(--texto); }
+      header { background: var(--azul); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; }
+      header h1 { font-size: 1.2rem; margin: 0; flex: 1; }
+      header button { background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 10px; padding: 8px 12px; font-size: .95rem; }
+      main { max-width: 760px; margin: 0 auto; padding: 16px 16px 120px; }
+      .cartao { background: var(--cartao); border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+      h2 { font-size: 1.15rem; margin: 0 0 10px; }
+      p { margin: 6px 0; }
+      .suave { color: var(--suave); font-size: .95rem; }
+      .botao { display: block; width: 100%; border: 0; border-radius: 14px; padding: 16px; font-size: 1.1rem; font-weight: 600; background: var(--azul); color: #fff; margin: 8px 0; text-align: center; }
+      .botao.sec { background: #e2e8f0; color: var(--texto); }
+      .botao.verde { background: var(--verde); }
+      .botao.vermelho { background: var(--vermelho); }
+      .botao:disabled { opacity: .5; }
+      label.campo { display: block; margin: 10px 0 2px; font-size: .9rem; color: var(--suave); }
+      input, select { width: 100%; font-size: 1rem; padding: 12px; border: 1px solid var(--borda); border-radius: 10px; background: #fff; color: var(--texto); }
+      input.aviso { border-color: var(--amarelo); background: var(--amarelo-f); }
+      input.erro { border-color: var(--vermelho); background: var(--vermelho-f); }
+      .faixa { border-left: 6px solid var(--borda); }
+      .faixa.verde { border-left-color: var(--verde); }
+      .faixa.amarelo { border-left-color: var(--amarelo); }
+      .faixa.vermelho { border-left-color: var(--vermelho); }
+      .selo { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .85rem; font-weight: 600; }
+      .selo.verde { background: var(--verde-f); color: var(--verde); }
+      .selo.amarelo { background: var(--amarelo-f); color: var(--amarelo); }
+      .selo.vermelho { background: var(--vermelho-f); color: var(--vermelho); }
+      .msg { border-radius: 12px; padding: 12px; margin: 8px 0; }
+      .msg.ok { background: var(--verde-f); }
+      .msg.atencao { background: var(--amarelo-f); }
+      .msg.erro { background: var(--vermelho-f); }
+      ul.probs { margin: 6px 0; padding-left: 20px; font-size: .95rem; }
+      .grade { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+      .grade .inteira { grid-column: 1 / -1; }
+      .aprovar { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 600; }
+      .aprovar input { width: 28px; height: 28px; }
+      .barra { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--borda); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+      .barra .botao { max-width: 728px; margin: 0 auto; }
+      .linha-arq { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-size: .95rem; }
+      .oculto { display: none !important; }
+      details summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+      table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+      td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🧾 Compras Express</h1>
+      <button id="bt-config" class="oculto" onclick="mostrarConfig()">Planilha</button>
+      <button id="bt-hist" class="oculto" onclick="mostrarHistorico()">Histórico</button>
+    </header>
+    <main>
+      <div id="carregando" class="cartao">Abrindo…</div>
+      <div id="avisos"></div>
+
+      <!-- Configuração: só na primeira vez -->
+      <section id="tela-config" class="oculto">
+        <div class="cartao">
+          <h2>1. Em qual aba ficam as compras?</h2>
+          <select id="cfg-aba" onchange="lerCabecalho()"></select>
+          <label class="campo">Cada linha da planilha é…</label>
+          <select id="cfg-gran" onchange="lerCabecalho()">
+            <option value="item">um item da nota (mais comum)</option>
+            <option value="nota">uma nota inteira</option>
+          </select>
+        </div>
+        <div class="cartao" id="cfg-colunas"></div>
+        <button class="botao" onclick="salvarConfig()">Salvar e começar</button>
+      </section>
+
+      <!-- Tela principal -->
+      <section id="tela-principal" class="oculto">
+        <div class="cartao">
+          <h2>Enviar notas</h2>
+          <p class="suave">Foto da nota, print da tela, PDF ou XML. Pode mandar vários de uma vez.</p>
+          <button class="botao" onclick="document.getElementById('in-camera').click()">📷 Tirar foto</button>
+          <button class="botao sec" onclick="document.getElementById('in-arquivos').click()">📁 Escolher arquivos</button>
+          <input id="in-camera" type="file" accept="image/*" capture="environment" class="oculto" onchange="enviar(this)" />
+          <input id="in-arquivos" type="file" multiple accept="image/*,application/pdf,.pdf,.xml,text/xml,application/xml" class="oculto" onchange="enviar(this)" />
+          <div id="progresso"></div>
+        </div>
+        <div id="revisao"></div>
+      </section>
+
+      <section id="tela-historico" class="oculto">
+        <div class="cartao">
+          <h2>Lançamentos</h2>
+          <div id="hist-lista"></div>
+          <button class="botao vermelho" id="bt-desfazer" onclick="desfazer()">Desfazer o último lote</button>
+          <p class="suave">Só apaga as linhas que o app criou e que ninguém mudou depois.</p>
+          <button class="botao sec" onclick="mostrarPrincipal()">Voltar</button>
+        </div>
+      </section>
+    </main>
+    <div class="barra oculto" id="barra">
+      <button class="botao verde" id="bt-lancar" onclick="lancar()">Lançar na planilha</button>
+    </div>
+
+    <script>
+      var estado = null, pendentes = [], cabecalho = null, ocupado = false;
+      var ROTULOS = {};
+      var CAMPOS_NOTA = ["data", "fornecedor", "cnpj", "numero", "total_nota"];
+      var CAMPOS_ITEM = ["descricao", "quantidade", "unidade", "unitario", "total_item", "categoria"];
+      var NUMERICOS = ["quantidade", "unitario", "total_item", "total_nota"];
+
+      function $(id) { return document.getElementById(id); }
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+      function chamar(fn) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        return new Promise(function (ok, falha) {
+          var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { falha(e); });
+          r[fn].apply(r, args);
+        });
+      }
+      function aviso(texto, tipo) {
+        var d = document.createElement("div");
+        d.className = "msg " + (tipo || "ok");
+        d.textContent = texto;
+        $("avisos").prepend(d);
+        setTimeout(function () { d.remove(); }, 9000);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      function erro(e) { aviso((e && e.message) || String(e), "erro"); }
+      function telas(qual) {
+        ["tela-config", "tela-principal", "tela-historico", "carregando"].forEach(function (t) { $(t).classList.toggle("oculto", t !== qual); });
+        $("bt-config").classList.toggle("oculto", !estado || !estado.configurado);
+        $("bt-hist").classList.toggle("oculto", !estado || !estado.configurado);
+        $("barra").classList.toggle("oculto", qual !== "tela-principal" || !pendentes.length);
+      }
+      function brl(n) { return n == null || n === "" ? "" : Number(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+      function dataBR(v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ""); return m ? m[3] + "/" + m[2] + "/" + m[1] : v || ""; }
+
+      // ------------------------------------------------ início
+      function iniciar() {
+        chamar("ceEstado").then(function (e) {
+          estado = e;
+          e.campos.forEach(function (c) { ROTULOS[c[0]] = c[1]; });
+          if (!e.configurado) mostrarConfig();
+          else mostrarPrincipal();
+        }).catch(erro);
+      }
+
+      // ------------------------------------------------ configuração
+      function mostrarConfig() {
+        var sel = $("cfg-aba");
+        sel.innerHTML = estado.abas.map(function (a) { return "<option>" + esc(a) + "</option>"; }).join("");
+        if (estado.config) { sel.value = estado.config.aba; $("cfg-gran").value = estado.config.granularidade || "item"; }
+        telas("tela-config");
+        lerCabecalho();
+      }
+      function lerCabecalho() {
+        $("cfg-colunas").innerHTML = "Lendo as colunas…";
+        chamar("ceLerCabecalho", $("cfg-aba").value, $("cfg-gran").value).then(function (c) {
+          cabecalho = c;
+          var atual = estado.config && estado.config.aba === $("cfg-aba").value ? estado.config.mapeamento : null;
+          var opcoes = '<option value="">— não preencher —</option>' + estado.campos.map(function (k) { return '<option value="' + k[0] + '">' + esc(k[1]) + "</option>"; }).join("");
+          var html = "<h2>2. O que vai em cada coluna?</h2><p class='suave'>Já deixamos uma sugestão. Confira e mude se precisar.</p>";
+          c.cabecalhos.forEach(function (cab, i) {
+            if (!cab) return;
+            var formula = c.colunasFormula.indexOf(i) >= 0;
+            html += "<label class='campo'>Coluna “" + esc(cab) + "”" + (formula ? " (tem fórmula — o app não mexe)" : "") + "</label>";
+            html += formula ? "<input disabled value='Calculada pela planilha' />" : "<select data-col='" + i + "'>" + opcoes + "</select>";
+          });
+          html += "<p class='suave'>Linhas com dados hoje: " + c.linhasComDados + (c.temTotais ? ". Achamos uma linha de totais: as novas entram antes dela e a soma é ajustada." : ".") + "</p>";
+          $("cfg-colunas").innerHTML = html;
+          Array.prototype.forEach.call(document.querySelectorAll("#cfg-colunas select"), function (s) {
+            var i = +s.dataset.col;
+            s.value = (atual ? atual[i] : c.proposta[i]) || "";
+          });
+        }).catch(function (e) { $("cfg-colunas").innerHTML = ""; erro(e); });
+      }
+      function salvarConfig() {
+        if (!cabecalho) return;
+        var mapa = cabecalho.cabecalhos.map(function () { return null; });
+        Array.prototype.forEach.call(document.querySelectorAll("#cfg-colunas select"), function (s) { mapa[+s.dataset.col] = s.value || null; });
+        chamar("ceSalvarConfig", {
+          aba: $("cfg-aba").value, granularidade: $("cfg-gran").value, linhaCabecalho: cabecalho.linhaCabecalho,
+          mapeamento: mapa, colunasFormula: cabecalho.colunasFormula,
+        }).then(function (e) { estado = e; aviso("Planilha configurada!"); mostrarPrincipal(); }).catch(erro);
+      }
+
+      // ------------------------------------------------ envio
+      function lerBase64(arquivo) {
+        return new Promise(function (ok, falha) {
+          var r = new FileReader();
+          r.onload = function () { ok(String(r.result).split(",")[1]); };
+          r.onerror = falha;
+          r.readAsDataURL(arquivo);
+        });
+      }
+      // Fotos grandes do celular são reduzidas (fica mais rápido e o OCR lê igual).
+      function reduzirImagem(arquivo) {
+        return new Promise(function (ok) {
+          if (!/^image\/(jpeg|png|webp)/.test(arquivo.type)) return ok(null);
+          var img = new Image();
+          img.onload = function () {
+            var max = 2200, esc = Math.min(1, max / Math.max(img.width, img.height));
+            var c = document.createElement("canvas");
+            c.width = Math.round(img.width * esc); c.height = Math.round(img.height * esc);
+            c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+            URL.revokeObjectURL(img.src);
+            ok(c.toDataURL("image/jpeg", 0.88).split(",")[1]);
+          };
+          img.onerror = function () { ok(null); };
+          img.src = URL.createObjectURL(arquivo);
+        });
+      }
+      async function enviar(input) {
+        var arquivos = Array.prototype.slice.call(input.files || []);
+        input.value = "";
+        if (!arquivos.length || ocupado) return;
+        ocupado = true;
+        var prog = $("progresso");
+        prog.innerHTML = "";
+        for (var i = 0; i < arquivos.length; i++) {
+          var a = arquivos[i];
+          var linha = document.createElement("div");
+          linha.className = "linha-arq";
+          linha.innerHTML = "<span>" + esc(a.name || "foto") + "</span><span>⏳ lendo…</span>";
+          prog.appendChild(linha);
+          try {
+            if (a.size > 20 * 1024 * 1024) throw new Error("Arquivo grande demais (máx. 20 MB).");
+            var reduzida = await reduzirImagem(a);
+            var b64 = reduzida || (await lerBase64(a));
+            var nome = a.name || "foto-" + Date.now() + ".jpg";
+            if (reduzida) nome = nome.replace(/\.(png|webp|jpe?g)$/i, "") + ".jpg";
+            var r = await chamar("ceProcessar", { nome: nome, mime: reduzida ? "image/jpeg" : a.type, base64: b64 });
+            linha.lastChild.textContent = (r.ok ? "✅ " : r.repetido ? "↩️ " : "⚠️ ") + r.mensagem;
+          } catch (e) {
+            linha.lastChild.textContent = "⚠️ " + ((e && e.message) || e);
+          }
+        }
+        ocupado = false;
+        carregarRevisao();
+      }
+
+      // ------------------------------------------------ revisão
+      function mostrarPrincipal() { telas("tela-principal"); carregarRevisao(); }
+      function carregarRevisao() {
+        chamar("cePendentes").then(function (p) { pendentes = p; desenhar(); }).catch(erro);
+      }
+      function campoInput(linha, campo, probs) {
+        var p = probs.filter(function (x) { return x.campo === campo && x.nivel !== "info"; });
+        var cls = p.some(function (x) { return x.nivel === "erro"; }) ? "erro" : p.length ? "aviso" : "";
+        var v = linha.valores[campo];
+        var mostrado = campo === "data" ? dataBR(v) : NUMERICOS.indexOf(campo) >= 0 ? brl(v) : v == null ? "" : v;
+        var tipo = NUMERICOS.indexOf(campo) >= 0 ? ' inputmode="decimal"' : campo === "data" ? ' inputmode="numeric" placeholder="dd/mm/aaaa"' : "";
+        var inteira = ["fornecedor", "descricao"].indexOf(campo) >= 0 ? " inteira" : "";
+        return "<div class='" + inteira + "'><label class='campo'>" + esc(ROTULOS[campo] || campo) + "</label><input class='" + cls + "'" + tipo +
+          " value='" + esc(mostrado) + "' onchange=\"editar('" + linha.id + "','" + campo + "',this.value)\" /></div>";
+      }
+      function visivel(campo) { return estado.config.mapeamento.indexOf(campo) >= 0; }
+      function desenhar() {
+        var grupos = {}, ordem = [];
+        pendentes.forEach(function (l) { if (!grupos[l.arquivoId]) { grupos[l.arquivoId] = []; ordem.push(l.arquivoId); } grupos[l.arquivoId].push(l); });
+        var html = "";
+        if (!pendentes.length) html = "<div class='cartao suave'>Nada para revisar. Envie notas acima.</div>";
+        else {
+          var verdes = pendentes.filter(function (l) { return l.cor === "verde" && !l.aprovada; }).length;
+          html += "<div class='cartao'><h2>Revisar (" + pendentes.length + " linha(s))</h2><p class='suave'>🟢 pode lançar · 🟡 confira os campos destacados · 🔴 tem erro</p>" +
+            (verdes ? "<button class='botao sec' onclick='aprovarVerdes()'>Marcar as " + verdes + " verdes como conferidas</button>" : "") + "</div>";
+        }
+        ordem.forEach(function (id) {
+          var ls = grupos[id], l0 = ls[0];
+          html += "<div class='cartao'><h2>📄 " + esc(l0.arquivo) + "</h2>";
+          if (l0.duplicata) html += "<div class='msg erro'>⚠️ " + esc(l0.duplicata) + "</div>";
+          html += "<div class='grade'>" + CAMPOS_NOTA.filter(visivel).map(function (c) { return campoInput(l0, c, l0.problemas); }).join("") + "</div>";
+          ls.forEach(function (l, i) {
+            var notas = l.problemas.filter(function (p) { return CAMPOS_NOTA.indexOf(p.campo) < 0 || i === 0; });
+            html += "<div class='cartao faixa " + l.cor + "' style='margin-top:12px'>";
+            html += "<span class='selo " + l.cor + "'>" + { verde: "OK", amarelo: "Conferir", vermelho: "Erro" }[l.cor] + "</span>";
+            html += "<div class='grade'>" + CAMPOS_ITEM.filter(visivel).map(function (c) { return campoInput(l, c, l.problemas); }).join("") + "</div>";
+            if (notas.length) html += "<ul class='probs'>" + notas.map(function (p) { return "<li>" + (p.nivel === "erro" ? "🔴 " : p.nivel === "info" ? "ℹ️ " : "🟡 ") + esc(p.msg) + "</li>"; }).join("") + "</ul>";
+            if (l.cor === "vermelho" && !l.aprovada) {
+              html += "<button class='botao sec' onclick=\"forcar('" + l.id + "')\">Lançar mesmo assim</button>";
+            } else {
+              html += "<label class='aprovar'><input type='checkbox' " + (l.aprovada ? "checked" : "") + " onchange=\"aprovar('" + l.id + "',this.checked)\" /> Conferi, pode lançar</label>";
+            }
+            html += "</div>";
+          });
+          html += "<button class='botao sec' onclick=\"descartar('" + id + "')\">Tirar este arquivo da revisão</button></div>";
+        });
+        $("revisao").innerHTML = html;
+        var n = pendentes.filter(function (l) { return l.aprovada; }).length;
+        $("bt-lancar").textContent = n ? "Lançar " + n + " linha(s) na planilha" : "Marque as linhas conferidas";
+        $("bt-lancar").disabled = !n;
+        $("barra").classList.toggle("oculto", !pendentes.length || $("tela-principal").classList.contains("oculto"));
+      }
+      function atualizar(p) { pendentes = p; desenhar(); }
+      function editar(id, campo, valor) { chamar("ceEditar", id, campo, valor).then(atualizar).catch(erro); }
+      function aprovar(id, sim) { chamar("ceAprovar", id, sim, false).then(atualizar).catch(function (e) { erro(e); carregarRevisao(); }); }
+      function forcar(id) {
+        if (!confirm("Esta linha tem erro. Tem certeza de que quer lançar assim mesmo?")) return;
+        chamar("ceAprovar", id, true, true).then(atualizar).catch(erro);
+      }
+      function aprovarVerdes() { chamar("ceAprovarVerdes").then(atualizar).catch(erro); }
+      function descartar(id) {
+        if (!confirm("Tirar este arquivo da revisão? A planilha não é alterada.")) return;
+        chamar("ceDescartarArquivo", id).then(atualizar).catch(erro);
+      }
+      function lancar() {
+        var n = pendentes.filter(function (l) { return l.aprovada; }).length;
+        if (!n || !confirm("Lançar " + n + " linha(s) na planilha?")) return;
+        $("bt-lancar").disabled = true;
+        $("bt-lancar").textContent = "Lançando…";
+        chamar("ceLancar").then(function (r) { aviso("✅ " + r.mensagem); carregarRevisao(); }).catch(function (e) { erro(e); carregarRevisao(); });
+      }
+
+      // ------------------------------------------------ histórico
+      function mostrarHistorico() {
+        telas("tela-historico");
+        $("hist-lista").innerHTML = "Carregando…";
+        chamar("ceHistorico").then(function (h) {
+          $("bt-desfazer").disabled = !h.some(function (l) { return !l.desfeito; });
+          $("hist-lista").innerHTML = h.length
+            ? "<table><tr><th>Quando</th><th>Linhas</th><th>Situação</th></tr>" + h.map(function (l) {
+                return "<tr><td>" + esc(l.quando) + "</td><td>" + l.linhas + "</td><td>" + (l.desfeito ? "desfeito" : "na planilha") + "</td></tr>";
+              }).join("") + "</table>"
+            : "<p class='suave'>Nenhum lançamento ainda.</p>";
+        }).catch(erro);
+      }
+      function desfazer() {
+        if (!confirm("Apagar da planilha as linhas do último lote?")) return;
+        chamar("ceDesfazer").then(function (r) { aviso(r.mensagem); mostrarHistorico(); }).catch(erro);
+      }
+
+      iniciar();
+    </script>
+  </body>
+</html>
