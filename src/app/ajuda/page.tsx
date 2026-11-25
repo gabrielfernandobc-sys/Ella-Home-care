@@ -19,6 +19,10 @@ export default function Ajuda() {
           <li>Corrija direto na célula, se precisar, e marque a caixinha de aprovar.</li>
           <li>Clique em <b>Lançar na planilha</b>. Pronto!</li>
           <li>Errou? Na tela inicial, <b>Desfazer último lote</b> remove só as linhas daquele lote.</li>
+          <li>
+            No fim do mês, abra <b>Relatórios</b>: total do mês, gastos por categoria e por fornecedor, evolução e preços fora do padrão.
+            Dá para baixar em Excel ou imprimir/salvar em PDF.
+          </li>
         </ol>
         <p className="mt-3 text-slate-700">
           Com o tempo o app aprende: as correções que você faz e os nomes de fornecedor da sua planilha passam a ser aplicados sozinhos.
@@ -30,7 +34,10 @@ export default function Ajuda() {
       <Cartao titulo="O que as cores querem dizer">
         <ul className="space-y-1.5">
           <li>🟢 <b>Verde</b>: tudo conferiu (soma, CNPJ, data, campos preenchidos, leitura com segurança).</li>
-          <li>🟡 <b>Amarelo</b>: confira — falta algum dado, a leitura ficou incerta, a soma não bate ou o app corrigiu sozinho.</li>
+          <li>
+            🟡 <b>Amarelo</b>: confira — falta algum dado, a leitura ficou incerta, a soma não bate, o app corrigiu sozinho ou o preço
+            está fora do padrão daquele item (muito acima, ou muito abaixo — o que costuma ser unidade trocada).
+          </li>
           <li>
             🔴 <b>Vermelho</b>: erro (CNPJ inválido, data no futuro) ou <b>duplicata</b> (já lançada ou repetida — inclusive o mesmo PDF salvo
             de novo ou o mesmo print reenviado). Não é lançada, a menos que você clique em “Lançar mesmo assim”.

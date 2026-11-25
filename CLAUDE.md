@@ -27,7 +27,8 @@ validar → detectar duplicatas → revisar (verde/amarelo/vermelho) → lançar
 9. **Opções da fase 2 nunca contornam as regras acima:** "aprovar verdes automaticamente" só marca a caixinha
    (lançar exige o clique da usuária) e vem desligada; comprovantes são guardados ANTES de gravar na planilha
    (falhou = nada é lançado); o de/para por aproximação nunca troca números, unidades, tamanhos ou negações, e
-   fornecedor só é corrigido por CNPJ ou texto exato.
+   fornecedor só é corrigido por CNPJ ou texto exato. Na fase 3, o alerta de preço só gera aviso (nunca muda
+   valor) e os relatórios só LEEM a planilha; a exportação é gerada localmente.
 10. **Repositório público:** nenhum dado real, nome de instituição, e-mail, chave ou segredo no código, testes ou exemplos.
    Exemplos são 100% fictícios (`src/lib/exemplos/ficticios.ts`, `exemplos/`). Segredos só no `.env` local.
 
@@ -65,6 +66,9 @@ Antes de cada commit: `npm run lint && npm run typecheck && npm test`.
 - Mensagens para a usuária: frases curtas, sem jargão, dizendo o que fazer.
 - Lógica pura em `src/lib/*` (testável, sem I/O); I/O em `src/lib/servidor/*` e `src/lib/planilha/google.ts`.
 - Toda planilha é acessada pela interface `AdaptadorPlanilha` (`src/lib/planilha/tipos.ts`). Testes usam `PlanilhaMemoria`.
+- Relatórios e alerta de preço partem de `registrosDaGrade` (`src/lib/relatorios.ts`) e `src/lib/precos.ts` (puros);
+  a leitura da planilha com cache fica em `src/lib/servidor/relatorios.ts`. Gráficos seguem o guia de visualização
+  (um tom, barras finas, valor na ponta, dica no hover/foco e tabela alternativa).
 - Toda regra nova de validação, duplicata ou escrita na planilha precisa de teste em `tests/`.
 - Mudança no banco = nova migração no fim de `MIGRACOES` (`src/lib/servidor/db.ts`); nunca edite uma migração já publicada.
 - Testes que precisam da IA usam `vi.mock("@/lib/extracao/ia")` (ver `tests/dedup-arquivos.test.ts`); comprovantes usam
