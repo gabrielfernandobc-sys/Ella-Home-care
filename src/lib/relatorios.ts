@@ -7,6 +7,7 @@
  */
 import type { CampoId, Granularidade } from "./campos";
 import { nomeBaseFornecedor } from "./duplicatas";
+import { alertasDoMes, LIMITE_ACIMA_PADRAO } from "./precos";
 import type { Mapeamento } from "./mapeamento";
 import { analisarAba } from "./planilha/planejador";
 import type { Grade } from "./planilha/tipos";
@@ -169,4 +170,55 @@ export function serieMensal(registros: RegistroCompra[], mes: string, quantos = 
 /** Meses (AAAA-MM) que têm alguma compra, do mais recente para o mais antigo. */
 export function mesesComCompras(registros: RegistroCompra[]): string[] {
   return [...new Set(registros.map((r) => r.data?.slice(0, 7)).filter(Boolean) as string[])].sort().reverse();
+}
+
+// ---------------- Relatório completo (tela e exportação) ----------------
+
+
+export interface AlertaRelatorio {
+  data: string | null;
+  fornecedor: string | null;
+  descricao: string | null;
+  unidade: string | null;
+  pago: number;
+  normal: number;
+  variacao: number;
+  compras: number;
+  tipo: "acima" | "abaixo";
+  aba: string;
+  linha: number;
+}
+
+export interface Relatorio {
+  resumo: ResumoMensal;
+  serie: { mes: string; total: number }[];
+  alertas: AlertaRelatorio[];
+  compras: RegistroCompra[];
+  meses: string[];
+}
+
+export function relatorioCompleto(
+  registros: RegistroCompra[],
+  mes: string,
+  opcoes: { usarUnidade: boolean; limitePreco?: number; mesesSerie?: number },
+): Relatorio {
+  return {
+    resumo: resumoMensal(registros, mes),
+    serie: serieMensal(registros, mes, opcoes.mesesSerie ?? 6),
+    alertas: alertasDoMes(registros, mes, opcoes.usarUnidade, opcoes.limitePreco ?? LIMITE_ACIMA_PADRAO).map(({ registro, alerta }) => ({
+      data: registro.data,
+      fornecedor: registro.fornecedor,
+      descricao: registro.descricao,
+      unidade: registro.unidade,
+      pago: alerta.pago,
+      normal: alerta.normal,
+      variacao: alerta.variacao,
+      compras: alerta.compras,
+      tipo: alerta.tipo,
+      aba: registro.aba,
+      linha: registro.linha,
+    })),
+    compras: registros.filter((r) => r.data?.startsWith(mes)).sort((a, b) => (a.data ?? "").localeCompare(b.data ?? "") || a.linha - b.linha),
+    meses: mesesComCompras(registros),
+  };
 }
