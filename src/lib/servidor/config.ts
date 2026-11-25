@@ -26,6 +26,10 @@ export interface ConfigPlanilha {
   pastaComprovantes?: string;
   /** Fase 2: aprovar sozinho as linhas verdes (desligado por padrão) */
   aprovarVerdesAutomaticamente?: boolean;
+  /** Fase 3: avisar preço unitário fora do padrão do item (ligado por padrão; só gera aviso) */
+  alertaPrecoAtivo?: boolean;
+  /** % acima da mediana das compras anteriores que gera aviso */
+  alertaPrecoPercentual?: number;
   atualizadoEm: string;
 }
 
@@ -44,6 +48,8 @@ export function configPadrao(): Omit<ConfigPlanilha, "fonte" | "planilhaId" | "p
     comprovantesAtivo: false,
     pastaComprovantes: "Notas",
     aprovarVerdesAutomaticamente: false,
+    alertaPrecoAtivo: true,
+    alertaPrecoPercentual: 30,
     atualizadoEm: new Date().toISOString(),
   };
 }

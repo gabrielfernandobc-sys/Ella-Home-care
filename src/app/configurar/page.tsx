@@ -51,6 +51,8 @@ function Configurar() {
   const [comprovantesAtivo, setComprovantesAtivo] = useState(false);
   const [pastaComprovantes, setPastaComprovantes] = useState("Notas");
   const [aprovarVerdesAuto, setAprovarVerdesAuto] = useState(false);
+  const [alertaPrecoAtivo, setAlertaPrecoAtivo] = useState(true);
+  const [alertaPrecoPercentual, setAlertaPrecoPercentual] = useState(30);
   const [ocupado, setOcupado] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro" | "info"; texto: string } | null>(
     params.get("erro") ? { tipo: "erro", texto: params.get("erro")! } : params.get("google") ? { tipo: "ok", texto: "Conta Google conectada! Agora cole o link da planilha." } : null,
@@ -73,6 +75,8 @@ function Configurar() {
       setComprovantesAtivo(!!cfg.comprovantesAtivo);
       setPastaComprovantes(cfg.pastaComprovantes || "Notas");
       setAprovarVerdesAuto(!!cfg.aprovarVerdesAutomaticamente);
+      setAlertaPrecoAtivo(cfg.alertaPrecoAtivo !== false);
+      setAlertaPrecoPercentual(cfg.alertaPrecoPercentual ?? 30);
       setMapa(cfg.mapeamento);
       if (cfg.fonte === "google") setLink(`https://docs.google.com/spreadsheets/d/${cfg.planilhaId}/edit`);
       try {
@@ -154,6 +158,8 @@ function Configurar() {
           comprovantesAtivo,
           pastaComprovantes,
           aprovarVerdesAutomaticamente: aprovarVerdesAuto,
+          alertaPrecoAtivo,
+          alertaPrecoPercentual,
         },
       });
       setMsg({ tipo: "ok", texto: "Configuração salva! Ela vale para todos os próximos lotes." });
@@ -502,6 +508,40 @@ function Configurar() {
                       </div>
                     ))}
                 </div>
+              )}
+            </div>
+
+            <div>
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 mt-1"
+                  checked={alertaPrecoAtivo}
+                  onChange={(e) => setAlertaPrecoAtivo(e.target.checked)}
+                />
+                <span>
+                  <b>Avisar preço fora do padrão</b> (ligado)
+                  <br />
+                  <span className="text-slate-600 text-sm">
+                    Compara o preço unitário de cada item com as compras anteriores do mesmo item na planilha (últimos 12 meses, pelo menos
+                    3 compras). Se estiver muito acima — ou muito abaixo, o que costuma ser unidade trocada —, a linha fica amarela. O
+                    valor nunca é alterado.
+                  </span>
+                </span>
+              </label>
+              {alertaPrecoAtivo && (
+                <label className="block ml-8 mt-2 text-sm">
+                  Avisar quando o preço estiver mais de
+                  <input
+                    type="number"
+                    min={5}
+                    max={500}
+                    className="mx-2 w-20 border border-slate-300 rounded-lg px-2 py-1"
+                    value={alertaPrecoPercentual}
+                    onChange={(e) => setAlertaPrecoPercentual(Number(e.target.value) || 30)}
+                  />
+                  % acima do normal.
+                </label>
               )}
             </div>
 
