@@ -71,7 +71,7 @@ function Celula({
     setBase(original);
     setTexto(original);
   }
-  const problema = linha.problemas.find((p) => p.campo === campo.id);
+  const problema = linha.problemas.find((p) => p.campo === campo.id && p.nivel !== "info");
   const incerta = linha.confianca[campo.id] && linha.confianca[campo.id] !== "alta";
   const borda = problema ? (problema.nivel === "erro" ? "!border-red-500" : "!border-amber-500") : incerta ? "!border-amber-300" : "";
   const numerico = campo.tipo === "moeda" || campo.tipo === "numero";
@@ -182,8 +182,8 @@ export function Tabela({
                     <td colSpan={campos.length} className="px-2 pb-2 text-[0.85rem]">
                       <ul className="space-y-0.5">
                         {avisos.map((p, i) => (
-                          <li key={i} className={p.nivel === "erro" ? "text-red-800" : "text-amber-900"}>
-                            {p.nivel === "erro" ? "⛔" : "⚠️"} {p.mensagem}
+                          <li key={i} className={p.nivel === "erro" ? "text-red-800" : p.nivel === "info" ? "text-slate-600" : "text-amber-900"}>
+                            {p.nivel === "erro" ? "⛔" : p.nivel === "info" ? "ℹ️" : "⚠️"} {p.mensagem}
                           </li>
                         ))}
                       </ul>

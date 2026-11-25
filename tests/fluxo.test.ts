@@ -189,4 +189,50 @@ describe("fluxo completo", () => {
     expect(p.estado.abas.find((a) => a.titulo === "Modelo")!.celulas).toHaveLength(3);
     m.cfg.salvarConfigPlanilha(atual);
   });
+
+  it("aprende o nome do fornecedor pela planilha e passa a confiar depois de 2 confirmações", async () => {
+    m.demo.PlanilhaDemo.reiniciar();
+    m.db.db().exec("UPDATE lancamentos SET desfeito_em = 'x' WHERE desfeito_em IS NULL; DELETE FROM depara;");
+    // Na planilha, a usuária escreve o fornecedor de um jeito mais curto.
+    const p = m.demo.PlanilhaDemo.carregar();
+    p.estado.abas[0].celulas[2][1] = "Farmácia Beta";
+    p.salvar();
+    m.proc.limparCachePlanilha();
+
+    const rodar = async (numero: string) => {
+      const lote = m.repo.criarLote("teste", null);
+      // Quantidades diferentes: cada nota tem outro total (não é duplicata).
+      const nota = { ...m.ex.NOTAS[1], numero, itens: m.ex.NOTAS[1].itens.map((i) => ({ ...i, quantidade: i.quantidade + Number(numero) % 100 })) };
+      await enviar(lote.id, `beta-${numero}.xml`, m.ex.montarXmlNfe(nota));
+      const linhas = m.repo.linhasDoLote(lote.id);
+      m.db.db().prepare("UPDATE linhas SET aprovada = 1 WHERE lote_id = ?").run(lote.id);
+      await m.lanc.lancarLote(lote.id, "teste");
+      return linhas;
+    };
+
+    const l1 = await rodar("61001");
+    expect(l1[0].valores.fornecedor).toBe("Farmácia Beta");
+    expect(l1[0].cor).toBe("amarelo"); // primeira vez: conferir
+    const l2 = await rodar("61002");
+    expect(l2[0].cor).toBe("amarelo"); // 1 confirmação ainda não basta
+    const l3 = await rodar("61003");
+    expect(l3[0].valores.fornecedor).toBe("Farmácia Beta");
+    expect(l3[0].cor).toBe("verde"); // confirmada 2 vezes: confiável
+    expect(l3[0].problemas.some((x) => x.nivel === "info" && /de\/para/.test(x.mensagem))).toBe(true);
+  });
+
+  it("aprende a categoria escolhida para um item", async () => {
+    const lote = m.repo.criarLote("teste", null);
+    await enviar(lote.id, "limpeza-1.xml", m.ex.montarXmlNfe({ ...m.ex.NOTAS[2], numero: "62001" }));
+    const linha = m.repo.linhasDoLote(lote.id).find((l) => l.valores.descricao === "DETERGENTE NEUTRO 500ML")!;
+    expect(linha.valores.categoria).toBe("limpeza");
+    await m.proc.editarLinha(linha.id, { categoria: "outros" });
+
+    const lote2 = m.repo.criarLote("teste", null);
+    await enviar(lote2.id, "limpeza-2.xml", m.ex.montarXmlNfe({ ...m.ex.NOTAS[2], numero: "62002" }));
+    const nova = m.repo.linhasDoLote(lote2.id).find((l) => l.valores.descricao === "DETERGENTE NEUTRO 500ML")!;
+    expect(nova.valores.categoria).toBe("outros");
+    expect(nova.depara[0]).toMatchObject({ campo: "categoria", tipo: "descricao" });
+  });
 });
+

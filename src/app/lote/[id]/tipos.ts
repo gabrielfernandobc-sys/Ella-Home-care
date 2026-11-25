@@ -14,7 +14,7 @@ export interface ArquivoTela {
 
 export interface ProblemaTela {
   campo?: CampoId;
-  nivel: "erro" | "aviso";
+  nivel: "erro" | "aviso" | "info";
   mensagem: string;
 }
 

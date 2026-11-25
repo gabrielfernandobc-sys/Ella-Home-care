@@ -8,7 +8,8 @@ import { CAMPO_POR_ID, type CampoId, type ValoresLinha } from "../campos";
 import { chavesDaPlanilha, chavesDocumento, explicarChave, hashArquivo, hashLinha } from "../duplicatas";
 import { extrairArquivo, ErroExtracao } from "../extracao";
 import { detectarTipo, gerarPrevia } from "../extracao/imagem";
-import { aplicarDePara, camposDoDocumento, documentoParaLinhas } from "../linhas";
+import { CAMPOS_DEPARA, explicarDePara, fornecedoresPorCnpj, TabelaDePara } from "../depara";
+import { camposDoDocumento, documentoParaLinhas } from "../linhas";
 import { corDaLinha, validarDocumento, type Problema } from "../validacao";
 import { adaptadorPara } from "./adaptador";
 import { caminhoPara, salvarBytes } from "./armazenamento";
@@ -90,7 +91,12 @@ export async function processarArquivo(arquivoId: string, reenfileirar: (id: str
     const bytes = fs.readFileSync(arq.caminho);
     const r = await extrairArquivo(bytes, arq.nome);
     const granularidade = cfg?.granularidade ?? "item";
-    const tabela = repo.tabelaDePara();
+    // Aprende com a planilha (nome usado para cada CNPJ) antes de aplicar o de/para.
+    if (cfg?.mapeamento.length) {
+      const abas = [...new Set(r.documentos.map((d) => abaDestino(cfg, { data_emissao: d.data_emissao })).filter(Boolean))] as string[];
+      for (const aba of abas) await lerAbaComCache(cfg, aba).catch(() => null);
+    }
+    const tabela = new TabelaDePara(repo.regrasDePara());
 
     const docIds: string[] = [];
     transacao(() => {
@@ -111,8 +117,8 @@ export async function processarArquivo(arquivoId: string, reenfileirar: (id: str
         });
         docIds.push(docId);
         documentoParaLinhas(doc, { granularidade, arquivo: arq.nome, loteId: arq.lote_id }).forEach((g, i) => {
-          const { valores, aplicados } = aplicarDePara(g.valores, tabela);
-          for (const a of aplicados) repo.registrarUsoDePara(a.campo, a.de);
+          const { valores, aplicados } = tabela.aplicar(g.valores);
+          for (const a of aplicados) repo.registrarUsoDePara(a.regra);
           repo.inserirLinha({
             id: repo.id(),
             lote_id: arq.lote_id,
@@ -171,7 +177,11 @@ export function limparCachePlanilha() {
   cachePlanilha.clear();
 }
 
-async function chavesNaAba(cfg: ConfigPlanilha, aba: string): Promise<Set<string> | null> {
+/**
+ * Lê a aba (com cache curto) e devolve as chaves de documentos que já estão lá.
+ * De quebra, aprende "CNPJ -> nome do fornecedor" como a planilha escreve.
+ */
+async function lerAbaComCache(cfg: ConfigPlanilha, aba: string): Promise<Set<string>> {
   const k = `${cfg.planilhaId}::${aba}`;
   const c = cachePlanilha.get(k);
   if (c && Date.now() - c.em < TTL) return c.chaves;
@@ -184,6 +194,12 @@ async function chavesNaAba(cfg: ConfigPlanilha, aba: string): Promise<Set<string
   }
   const grade = await adaptador.lerGrade(aba);
   const chaves = chavesDaPlanilha(grade, cfg.mapeamento, cfg.linhaCabecalho);
+  const colCnpj = cfg.mapeamento.indexOf("cnpj");
+  const colForn = cfg.mapeamento.indexOf("fornecedor");
+  if (colCnpj >= 0 && colForn >= 0) {
+    const linhas = grade.valores.slice(cfg.linhaCabecalho).map((l) => ({ cnpj: l?.[colCnpj], fornecedor: l?.[colForn] }));
+    for (const [cnpj, nome] of fornecedoresPorCnpj(linhas)) repo.salvarRegraDePara("fornecedor", "cnpj", cnpj, nome, "planilha");
+  }
   cachePlanilha.set(k, { chaves, em: Date.now() });
   return chaves;
 }
@@ -239,7 +255,7 @@ export async function reavaliarDocumentos(docIds: string[]) {
       const aba = abaDestino(cfg, v0);
       if (aba) {
         try {
-          const naPlanilha = await chavesNaAba(cfg, aba);
+          const naPlanilha = await lerAbaComCache(cfg, aba);
           const comum = chaves.find((k) => naPlanilha?.has(k));
           if (comum) motivo = `Já está na planilha, aba “${aba}” (${explicarChave(comum)}).`;
         } catch {
@@ -273,11 +289,14 @@ export async function reavaliarDocumentos(docIds: string[]) {
     linhas.forEach((l, i) => {
       if (l.lancada) return;
       const p = [...extras, ...problemas[i]];
-      if (l.depara.length) {
-        p.push({
-          nivel: "aviso",
-          mensagem: `Corrigido automaticamente: ${l.depara.map((d) => `“${d.de}” → “${d.para}”`).join(", ")}. Confira.`,
-        });
+      // Correções do de/para: regra confiável vira só uma nota; as demais pedem conferência.
+      const confiaveis = l.depara.filter((d) => d.confiavel);
+      const conferir = l.depara.filter((d) => !d.confiavel);
+      if (conferir.length) {
+        p.push({ nivel: "aviso", mensagem: `Corrigido automaticamente: ${conferir.map(explicarDePara).join("; ")}. Confira.` });
+      }
+      if (confiaveis.length) {
+        p.push({ nivel: "info", mensagem: `Corrigido pelo de/para: ${confiaveis.map(explicarDePara).join("; ")}.` });
       }
       const duplicada = !!motivo;
       const cor = corDaLinha(p, duplicada);
@@ -312,9 +331,8 @@ export async function editarLinha(linhaId: string, novos: ValoresLinha) {
       const antes = atual.valores[campo];
       if (antes === limpo) continue;
       atual.valores[campo] = limpo;
-      // Aprendizado de/para: o texto original lido -> o que a usuária escreveu.
-      const original = atual.originais[campo];
-      if (typeof original === "string" && typeof limpo === "string") repo.salvarDePara(campo, original, limpo);
+      // Aprendizado de/para (só na linha editada, para não ensinar a mesma coisa várias vezes).
+      if (l.id === linha.id && typeof limpo === "string" && CAMPOS_DEPARA.includes(campo)) aprenderComEdicao(atual, campo, limpo);
       // Valor conferido pela usuária: a dúvida de leitura deixa de valer.
       atual.confianca[campo] = "alta";
       repo.atualizarLinha(l.id, {
@@ -327,4 +345,22 @@ export async function editarLinha(linhaId: string, novos: ValoresLinha) {
   }
   await reavaliarDocumentos([linha.documento_id]);
   return repo.obterLinha(linhaId);
+}
+
+/**
+ * O que a edição ensina:
+ * - o texto original lido -> o texto que a usuária escreveu (mesmo campo);
+ * - fornecedor: também o CNPJ -> nome;
+ * - categoria: também a descrição do item -> categoria.
+ */
+function aprenderComEdicao(linha: repo.Linha, campo: CampoId, novo: string) {
+  const original = linha.originais[campo];
+  if (typeof original === "string" && original.trim() && campo !== "categoria") {
+    repo.salvarRegraDePara(campo, campo, original, novo);
+  }
+  if (campo === "fornecedor" && linha.valores.cnpj) repo.salvarRegraDePara("fornecedor", "cnpj", linha.valores.cnpj, novo);
+  if (campo === "categoria") {
+    const descricao = linha.originais.descricao ?? linha.valores.descricao;
+    if (descricao) repo.salvarRegraDePara("categoria", "descricao", descricao, novo);
+  }
 }

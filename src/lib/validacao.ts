@@ -9,7 +9,8 @@ import { dataParaBR, diasEntre, formatarMoeda, hojeISO, parseData, parseNumero }
 
 export interface Problema {
   campo?: CampoId;
-  nivel: "erro" | "aviso";
+  /** "info" é só uma nota (não muda a cor da linha) */
+  nivel: "erro" | "aviso" | "info";
   mensagem: string;
 }
 
@@ -154,6 +155,6 @@ export function validarLinha(linha: LinhaParaValidar, opcoes: OpcoesValidacao): 
 
 export function corDaLinha(problemas: Problema[], duplicada: boolean): Cor {
   if (duplicada || problemas.some((x) => x.nivel === "erro")) return "vermelho";
-  if (problemas.length > 0) return "amarelo";
+  if (problemas.some((x) => x.nivel === "aviso")) return "amarelo";
   return "verde";
 }

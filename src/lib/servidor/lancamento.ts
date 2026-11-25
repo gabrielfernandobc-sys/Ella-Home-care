@@ -5,6 +5,7 @@
  * - Desfazer remove somente as linhas criadas por aquele lote, depois de conferir
  *   que elas continuam exatamente como foram gravadas.
  */
+import type { CampoId } from "../campos";
 import { problemasDoMapeamento } from "../mapeamento";
 import { acrescentarLinhas, ErroPlanilha } from "../planilha/acrescentar";
 import { analisarAba } from "../planilha/planejador";
@@ -120,6 +121,15 @@ export function lancarLote(loteId: string, usuaria: string | null): Promise<Resu
             });
             repo.atualizarLinha(l.id, { lancada: true });
           });
+          // Correção do de/para lançada sem mudança pela usuária: uma confirmação por regra (por lançamento,
+          // não por item, para que uma nota com 10 itens não conte como 10 confirmações).
+          const confirmadas = new Map<string, { campo: CampoId; base: CampoId; de: string }>();
+          for (const l of ordenadas) {
+            for (const d of l.depara ?? []) {
+              if (d.regra && l.valores[d.campo] === d.para) confirmadas.set(`${d.regra.campo}|${d.regra.base}|${d.regra.de}`, d.regra);
+            }
+          }
+          for (const r of confirmadas.values()) repo.confirmarDePara(r);
         });
         resultado.lancadas += ordenadas.length;
         resultado.abas.push({ aba, linhas: r.linhas.map((x) => x + 1) });

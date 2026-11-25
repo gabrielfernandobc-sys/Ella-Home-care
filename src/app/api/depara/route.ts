@@ -7,8 +7,8 @@ export async function GET() {
 
 export async function DELETE(req: Request) {
   try {
-    const c = await lerJson<{ campo: string; de: string }>(req);
-    excluirDePara(c.campo, c.de);
+    const c = await lerJson<{ campo: string; base?: string; de: string }>(req);
+    excluirDePara(c.campo, c.base ?? c.campo, c.de);
     return ok({ ok: true });
   } catch (e) {
     return respostaDeErro(e);

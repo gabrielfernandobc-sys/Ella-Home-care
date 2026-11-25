@@ -1,8 +1,8 @@
-/** Transforma documentos extraídos em linhas da planilha e aplica o de/para da usuária. */
-import type { CampoId, Confianca, ConfiancaLinha, Granularidade, ValoresLinha } from "./campos";
+/** Transforma documentos extraídos em linhas da planilha (o de/para fica em depara.ts). */
+import type { Confianca, ConfiancaLinha, Granularidade, ValoresLinha } from "./campos";
 import { chaveCnpj, formatarCnpj } from "./cnpj";
 import type { DocumentoExtraido } from "./extracao/schema";
-import { normalizar, parseData } from "./texto";
+import { parseData } from "./texto";
 
 export interface LinhaGerada {
   valores: ValoresLinha;
@@ -105,28 +105,4 @@ export function documentoParaLinhas(
       valor_total_item: item.confianca.valor_total,
     },
   }));
-}
-
-/** Campos em que a usuária pode ensinar um "de -> para". */
-export const CAMPOS_DEPARA: CampoId[] = ["descricao", "fornecedor", "unidade", "categoria", "forma_pagamento", "centro_custo"];
-
-/** campo -> (texto original normalizado -> texto corrigido) */
-export type TabelaDePara = Map<CampoId, Map<string, string>>;
-
-export function aplicarDePara(
-  valores: ValoresLinha,
-  tabela: TabelaDePara,
-): { valores: ValoresLinha; aplicados: { campo: CampoId; de: string; para: string }[] } {
-  const novo = { ...valores };
-  const aplicados: { campo: CampoId; de: string; para: string }[] = [];
-  for (const campo of CAMPOS_DEPARA) {
-    const atual = novo[campo];
-    if (typeof atual !== "string" || !atual) continue;
-    const para = tabela.get(campo)?.get(normalizar(atual));
-    if (para && para !== atual) {
-      novo[campo] = para;
-      aplicados.push({ campo, de: atual, para });
-    }
-  }
-  return { valores: novo, aplicados };
 }

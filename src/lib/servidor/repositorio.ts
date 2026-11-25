@@ -1,8 +1,7 @@
 /** Acesso aos dados locais: lotes, arquivos, documentos, linhas, de/para. */
 import { randomUUID } from "node:crypto";
 import type { CampoId, ConfiancaLinha, ValoresLinha } from "../campos";
-import type { TabelaDePara } from "../linhas";
-import { normalizar } from "../texto";
+import { chaveDePara, type DeParaAplicado, type RegraDePara } from "../depara";
 import type { Cor, Problema } from "../validacao";
 import { agora, db } from "./db";
 
@@ -57,7 +56,7 @@ export interface Linha {
   valores: ValoresLinha;
   originais: ValoresLinha;
   confianca: ConfiancaLinha;
-  depara: { campo: CampoId; de: string; para: string }[];
+  depara: DeParaAplicado[];
   problemas: Problema[];
   cor: Cor;
   duplicada: boolean;
@@ -380,43 +379,58 @@ export function ultimoLoteLancado(): string | null {
 
 // ---------- De/para ----------
 
-export function tabelaDePara(): TabelaDePara {
-  const rs = db().prepare("SELECT campo, de, para FROM depara").all() as { campo: CampoId; de: string; para: string }[];
-  const t: TabelaDePara = new Map();
-  for (const r of rs) {
-    if (!t.has(r.campo)) t.set(r.campo, new Map());
-    t.get(r.campo)!.set(r.de, r.para);
-  }
-  return t;
+export function regrasDePara(): RegraDePara[] {
+  return db().prepare("SELECT campo, base, de, para, origem, confirmacoes FROM depara").all() as unknown as RegraDePara[];
 }
 
-export function salvarDePara(campo: CampoId, de: string, para: string) {
-  const chave = normalizar(de);
-  if (!chave || !para.trim() || normalizar(para) === chave) return;
+/**
+ * Salva (ou atualiza) uma regra. Se o "para" mudar, as confirmações voltam a zero.
+ * Regras aprendidas da planilha nunca substituem uma regra ensinada pela usuária.
+ */
+export function salvarRegraDePara(
+  campo: CampoId,
+  base: CampoId,
+  deTexto: unknown,
+  para: string,
+  origem: "usuaria" | "planilha" = "usuaria",
+) {
+  const chave = chaveDePara(base, deTexto);
+  const destino = para.trim();
+  if (!chave || !destino) return;
+  if (base === campo && chaveDePara(campo, destino) === chave) return; // nada a corrigir
+  const existente = db()
+    .prepare("SELECT para, origem FROM depara WHERE campo = ? AND base = ? AND de = ?")
+    .get(campo, base, chave) as { para: string; origem: string } | undefined;
+  if (existente && origem === "planilha" && existente.origem === "usuaria") return;
+  if (existente && existente.para === destino) return;
   db()
     .prepare(
-      `INSERT INTO depara (campo, de, para, criado_em) VALUES (?, ?, ?, ?)
-       ON CONFLICT(campo, de) DO UPDATE SET para = excluded.para`,
+      `INSERT INTO depara (campo, base, de, para, origem, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(campo, base, de) DO UPDATE SET para = excluded.para, origem = excluded.origem,
+         confirmacoes = 0, atualizado_em = excluded.atualizado_em`,
     )
-    .run(campo, chave, para.trim(), agora());
+    .run(campo, base, chave, destino, origem, agora(), agora());
 }
 
-export function registrarUsoDePara(campo: CampoId, de: string) {
-  db().prepare("UPDATE depara SET usos = usos + 1 WHERE campo = ? AND de = ?").run(campo, normalizar(de));
+type ChaveRegra = { campo: CampoId; base: CampoId; de: string };
+
+export function registrarUsoDePara(r: ChaveRegra) {
+  db().prepare("UPDATE depara SET usos = usos + 1 WHERE campo = ? AND base = ? AND de = ?").run(r.campo, r.base, r.de);
+}
+
+/** A linha foi lançada sem a usuária mudar o valor corrigido: a regra ganha uma confirmação. */
+export function confirmarDePara(r: ChaveRegra) {
+  db().prepare("UPDATE depara SET confirmacoes = confirmacoes + 1 WHERE campo = ? AND base = ? AND de = ?").run(r.campo, r.base, r.de);
 }
 
 export function listarDePara() {
-  return db().prepare("SELECT campo, de, para, usos, criado_em FROM depara ORDER BY campo, de").all() as {
-    campo: CampoId;
-    de: string;
-    para: string;
-    usos: number;
-    criado_em: string;
-  }[];
+  return db()
+    .prepare("SELECT campo, base, de, para, origem, usos, confirmacoes, criado_em FROM depara ORDER BY campo, base, de")
+    .all() as unknown as (RegraDePara & { usos: number; criado_em: string })[];
 }
 
-export function excluirDePara(campo: string, de: string) {
-  db().prepare("DELETE FROM depara WHERE campo = ? AND de = ?").run(campo, de);
+export function excluirDePara(campo: string, base: string, de: string) {
+  db().prepare("DELETE FROM depara WHERE campo = ? AND base = ? AND de = ?").run(campo, base, de);
 }
 
 export function valoresConhecidos(campo: CampoId, limite = 500): string[] {

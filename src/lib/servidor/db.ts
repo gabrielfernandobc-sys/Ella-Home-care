@@ -120,6 +120,25 @@ const MIGRACOES: string[] = [
     detalhe TEXT
   );
   `,
+  // 2) Fase 2: de/para com chave (CNPJ -> fornecedor, descrição -> categoria), origem e confirmações.
+  `
+  CREATE TABLE depara_v2 (
+    campo TEXT NOT NULL,
+    base TEXT NOT NULL,
+    de TEXT NOT NULL,
+    para TEXT NOT NULL,
+    origem TEXT NOT NULL DEFAULT 'usuaria',
+    usos INTEGER NOT NULL DEFAULT 0,
+    confirmacoes INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT,
+    PRIMARY KEY (campo, base, de)
+  );
+  INSERT INTO depara_v2 (campo, base, de, para, origem, usos, criado_em)
+    SELECT campo, campo, de, para, 'usuaria', usos, criado_em FROM depara;
+  DROP TABLE depara;
+  ALTER TABLE depara_v2 RENAME TO depara;
+  `,
 ];
 
 type Global = { __comprasDb?: DatabaseSync };
