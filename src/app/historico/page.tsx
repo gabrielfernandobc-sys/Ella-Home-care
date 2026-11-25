@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Aviso, Botao, Cartao, Carregando, Selo } from "@/components/ui";
 import { CAMPO_POR_ID, type CampoId } from "@/lib/campos";
+import { formatarCnpj } from "@/lib/cnpj";
+import { CONFIRMACOES_PARA_CONFIAR } from "@/lib/depara";
 import { api } from "@/lib/cliente/api";
 import { letraColuna } from "@/lib/mapeamento";
 
@@ -20,9 +22,12 @@ interface LoteResumo {
 }
 interface DePara {
   campo: CampoId;
+  base: CampoId;
   de: string;
   para: string;
+  origem: "usuaria" | "planilha";
   usos: number;
+  confirmacoes: number;
 }
 interface AbaDemo {
   titulo: string;
@@ -107,7 +112,9 @@ export default function Historico() {
 
       <Cartao titulo="Correções que o app aprendeu (de → para)">
         <p className="text-sm text-slate-600 mb-3">
-          Quando você corrige um texto na revisão, o app lembra e aplica nos próximos lotes (a linha fica amarela para você conferir).
+          Quando você corrige um texto na revisão, o app lembra e aplica nos próximos lotes. Ele também aprende com a planilha o nome
+          que você usa para cada fornecedor (pelo CNPJ). Nas primeiras vezes a linha fica amarela para você conferir; depois de{" "}
+          {CONFIRMACOES_PARA_CONFIAR} lançamentos sem mudança, a correção passa a ser aplicada sem pedir conferência.
         </p>
         {depara.length === 0 ? (
           <p className="text-slate-600">Nenhuma correção ainda.</p>
@@ -115,25 +122,42 @@ export default function Historico() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b text-slate-600">
-                <th className="py-2 pr-3">Campo</th>
-                <th className="py-2 pr-3">Como vem no documento</th>
+                <th className="py-2 pr-3">Corrige</th>
+                <th className="py-2 pr-3">Quando</th>
                 <th className="py-2 pr-3">Vira</th>
+                <th className="py-2 pr-3">Aprendido com</th>
+                <th className="py-2 pr-3">Situação</th>
                 <th className="py-2 pr-3">Usos</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {depara.map((d) => (
-                <tr key={d.campo + d.de} className="border-b border-slate-100">
+                <tr key={`${d.campo}|${d.base}|${d.de}`} className="border-b border-slate-100">
                   <td className="py-2 pr-3">{CAMPO_POR_ID[d.campo]?.rotulo ?? d.campo}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{d.de}</td>
+                  <td className="py-2 pr-3 text-xs">
+                    {d.base === d.campo ? "texto lido " : d.base === "cnpj" ? "CNPJ " : "descrição "}
+                    <span className="font-mono">“{d.base === "cnpj" ? formatarCnpj(d.de) : d.de}”</span>
+                  </td>
                   <td className="py-2 pr-3 font-medium">{d.para}</td>
+                  <td className="py-2 pr-3">{d.origem === "planilha" ? "a planilha" : "suas correções"}</td>
+                  <td className="py-2 pr-3">
+                    {d.confirmacoes >= CONFIRMACOES_PARA_CONFIAR ? (
+                      <Selo cor="verde">confiável</Selo>
+                    ) : d.usos === 0 ? (
+                      <Selo cor="cinza">ainda não usada</Selo>
+                    ) : (
+                      <Selo cor="amarelo">
+                        conferindo ({d.confirmacoes}/{CONFIRMACOES_PARA_CONFIAR})
+                      </Selo>
+                    )}
+                  </td>
                   <td className="py-2 pr-3">{d.usos}</td>
                   <td className="py-2 text-right">
                     <button
                       className="text-red-800 underline"
                       onClick={async () => {
-                        await api("/api/depara", { metodo: "DELETE", corpo: { campo: d.campo, de: d.de } });
+                        await api("/api/depara", { metodo: "DELETE", corpo: { campo: d.campo, base: d.base, de: d.de } });
                         carregar();
                       }}
                     >

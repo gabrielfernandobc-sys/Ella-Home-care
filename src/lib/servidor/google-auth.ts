@@ -8,6 +8,8 @@ import { apagarConfig, lerConfig, salvarConfig } from "./db";
 import { porta } from "./config";
 
 export const ESCOPOS = ["openid", "email", "https://www.googleapis.com/auth/spreadsheets"];
+/** Só pedido quando a usuária liga "comprovantes no Drive": acesso apenas aos arquivos criados pelo app. */
+export const ESCOPO_DRIVE = "https://www.googleapis.com/auth/drive.file";
 
 export function googleConfigurado(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -28,14 +30,19 @@ function novoCliente(): OAuth2Client {
   });
 }
 
-export function urlDeLogin(estado: string): string {
+export function urlDeLogin(estado: string, comDrive = false): string {
   return novoCliente().generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: ESCOPOS,
+    scope: comDrive || temEscopoDrive() ? [...ESCOPOS, ESCOPO_DRIVE] : ESCOPOS,
     state: estado,
-    include_granted_scopes: false,
+    include_granted_scopes: true,
   });
+}
+
+/** A conta conectada já autorizou o Drive (só arquivos do app)? */
+export function temEscopoDrive(): boolean {
+  return (sessaoGoogle()?.tokens.scope ?? "").split(" ").includes(ESCOPO_DRIVE);
 }
 
 interface SessaoGoogle {

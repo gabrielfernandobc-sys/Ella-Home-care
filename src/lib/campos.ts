@@ -40,6 +40,7 @@ export const CAMPO_IDS = [
   "observacoes",
   "arquivo_origem",
   "id_lote",
+  "comprovante",
 ] as const;
 export type CampoId = (typeof CAMPO_IDS)[number];
 
@@ -61,6 +62,7 @@ export const CAMPOS: DefinicaoCampo[] = [
   { id: "observacoes", rotulo: "Observações", tipo: "texto", nivel: "nota" },
   { id: "arquivo_origem", rotulo: "Arquivo de origem", tipo: "texto", nivel: "app" },
   { id: "id_lote", rotulo: "ID do lote", tipo: "texto", nivel: "app" },
+  { id: "comprovante", rotulo: "Comprovante (link no Drive)", tipo: "texto", nivel: "app" },
 ];
 
 export const CAMPO_POR_ID: Record<CampoId, DefinicaoCampo> = Object.fromEntries(

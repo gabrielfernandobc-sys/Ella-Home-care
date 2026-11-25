@@ -14,6 +14,7 @@ interface Estado {
   googleConfigurado: boolean;
   googleConectado: boolean;
   email: string | null;
+  driveAutorizado: boolean;
 }
 interface PlanilhaAberta {
   fonte: "google" | "demo";
@@ -47,6 +48,11 @@ function Configurar() {
   const [mapa, setMapa] = useState<(CampoId | null)[]>([]);
   const [obrigatorios, setObrigatorios] = useState<CampoId[]>(["data_emissao", "fornecedor", "descricao", "valor_total_item"]);
   const [diasMaximos, setDiasMaximos] = useState(180);
+  const [comprovantesAtivo, setComprovantesAtivo] = useState(false);
+  const [pastaComprovantes, setPastaComprovantes] = useState("Notas");
+  const [aprovarVerdesAuto, setAprovarVerdesAuto] = useState(false);
+  const [alertaPrecoAtivo, setAlertaPrecoAtivo] = useState(true);
+  const [alertaPrecoPercentual, setAlertaPrecoPercentual] = useState(30);
   const [ocupado, setOcupado] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro" | "info"; texto: string } | null>(
     params.get("erro") ? { tipo: "erro", texto: params.get("erro")! } : params.get("google") ? { tipo: "ok", texto: "Conta Google conectada! Agora cole o link da planilha." } : null,
@@ -66,6 +72,11 @@ function Configurar() {
       setLinhaCab(cfg.linhaCabecalho);
       setObrigatorios(cfg.obrigatorios);
       setDiasMaximos(cfg.diasMaximos);
+      setComprovantesAtivo(!!cfg.comprovantesAtivo);
+      setPastaComprovantes(cfg.pastaComprovantes || "Notas");
+      setAprovarVerdesAuto(!!cfg.aprovarVerdesAutomaticamente);
+      setAlertaPrecoAtivo(cfg.alertaPrecoAtivo !== false);
+      setAlertaPrecoPercentual(cfg.alertaPrecoPercentual ?? 30);
       setMapa(cfg.mapeamento);
       if (cfg.fonte === "google") setLink(`https://docs.google.com/spreadsheets/d/${cfg.planilhaId}/edit`);
       try {
@@ -144,6 +155,11 @@ function Configurar() {
           colunasFormula: cab.colunasFormula,
           obrigatorios,
           diasMaximos,
+          comprovantesAtivo,
+          pastaComprovantes,
+          aprovarVerdesAutomaticamente: aprovarVerdesAuto,
+          alertaPrecoAtivo,
+          alertaPrecoPercentual,
         },
       });
       setMsg({ tipo: "ok", texto: "Configuração salva! Ela vale para todos os próximos lotes." });
@@ -433,6 +449,121 @@ function Configurar() {
             />
             dias.
           </label>
+        </Cartao>
+      )}
+
+      {cab && (
+        <Cartao titulo="Passo 5 — Opções (pode deixar como está)">
+          <div className="space-y-6">
+            <div>
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 mt-1"
+                  checked={comprovantesAtivo}
+                  onChange={(e) => setComprovantesAtivo(e.target.checked)}
+                />
+                <span>
+                  <b>Guardar os comprovantes no Google Drive</b>
+                  <br />
+                  <span className="text-slate-600 text-sm">
+                    Ao lançar, o arquivo original de cada nota vai para a pasta <b>{pastaComprovantes || "Notas"}/AAAA-MM</b> (pelo mês da
+                    nota) e o link entra na coluna “Comprovante”. O arquivo vai inteiro para o seu Drive — se a nota tiver algum dado
+                    de paciente, ele também vai.
+                    {planilha?.fonte === "demo" && " Na demonstração, os arquivos vão para uma pasta deste computador."}
+                  </span>
+                </span>
+              </label>
+              {comprovantesAtivo && (
+                <div className="ml-8 mt-3 space-y-3">
+                  <label className="block text-sm">
+                    Nome da pasta principal:
+                    <input
+                      className="block mt-1 w-60 border border-slate-300 rounded-lg px-3 py-1.5"
+                      value={pastaComprovantes}
+                      maxLength={60}
+                      onChange={(e) => setPastaComprovantes(e.target.value)}
+                    />
+                  </label>
+                  {!mapa.includes("comprovante") && (
+                    <Aviso tipo="atencao">
+                      A planilha não tem uma coluna para o link. Crie uma coluna “Comprovante” na planilha e clique em “Ler colunas da
+                      planilha” de novo.
+                    </Aviso>
+                  )}
+                  {planilha?.fonte === "google" &&
+                    (estado.driveAutorizado ? (
+                      <p className="text-sm">
+                        <Selo cor="verde">✓ Google Drive autorizado</Selo> (só os arquivos criados por este app)
+                      </p>
+                    ) : (
+                      <div className="space-y-1">
+                        <a href="/api/auth/google/entrar?drive=1">
+                          <Botao variante="secundario">Autorizar Google Drive</Botao>
+                        </a>
+                        <p className="text-sm text-slate-600">
+                          O app pede acesso só aos arquivos que ele mesmo criar — ele não vê o resto do seu Drive. Depois de autorizar,
+                          volte aqui e salve.
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 mt-1"
+                  checked={alertaPrecoAtivo}
+                  onChange={(e) => setAlertaPrecoAtivo(e.target.checked)}
+                />
+                <span>
+                  <b>Avisar preço fora do padrão</b> (ligado)
+                  <br />
+                  <span className="text-slate-600 text-sm">
+                    Compara o preço unitário de cada item com as compras anteriores do mesmo item na planilha (últimos 12 meses, pelo menos
+                    3 compras). Se estiver muito acima — ou muito abaixo, o que costuma ser unidade trocada —, a linha fica amarela. O
+                    valor nunca é alterado.
+                  </span>
+                </span>
+              </label>
+              {alertaPrecoAtivo && (
+                <label className="block ml-8 mt-2 text-sm">
+                  Avisar quando o preço estiver mais de
+                  <input
+                    type="number"
+                    min={5}
+                    max={500}
+                    className="mx-2 w-20 border border-slate-300 rounded-lg px-2 py-1"
+                    value={alertaPrecoPercentual}
+                    onChange={(e) => setAlertaPrecoPercentual(Number(e.target.value) || 30)}
+                  />
+                  % acima do normal.
+                </label>
+              )}
+            </div>
+
+            <div>
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 mt-1"
+                  checked={aprovarVerdesAuto}
+                  onChange={(e) => setAprovarVerdesAuto(e.target.checked)}
+                />
+                <span>
+                  <b>Aprovar automaticamente as linhas verdes</b>
+                  <br />
+                  <span className="text-slate-600 text-sm">
+                    As linhas em que tudo conferiu já chegam aprovadas. Você ainda revisa as amarelas e vermelhas e é você quem clica em
+                    “Lançar na planilha” — nada é gravado sozinho. Recomendado só depois de algumas semanas de uso.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
           <div className="mt-6">
             <Botao grande variante="sucesso" onClick={salvar} disabled={ocupado || problemas.length > 0}>
               ✓ Salvar configuração

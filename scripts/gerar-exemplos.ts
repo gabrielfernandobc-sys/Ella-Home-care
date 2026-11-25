@@ -146,11 +146,11 @@ async function planilha() {
     );
     ws.getRow(1).font = { bold: true };
     ws.getRow(linhas.length).font = { bold: true };
-    ws.columns.forEach((col, i) => (col.width = [12, 40, 22, 10, 34, 20, 8, 8, 14, 14, 16, 24, 12][i] ?? 14));
+    ws.columns.forEach((col, i) => (col.width = [12, 40, 22, 10, 34, 20, 8, 8, 14, 14, 16, 24, 12, 30][i] ?? 14));
     ["I", "J"].forEach((c) => (ws.getColumn(c).numFmt = '"R$" #,##0.00'));
   };
   preencher(wb.addWorksheet("Compras"), PLANILHA_MODELO);
-  preencher(wb.addWorksheet("Modelo"), [PLANILHA_MODELO[0], [], ["TOTAL", "", "", "", "", "", "", "", "", "=SUM(J2:J2)", "", "", ""]]);
+  preencher(wb.addWorksheet("Modelo"), [PLANILHA_MODELO[0], [], ["TOTAL", "", "", "", "", "", "", "", "", "=SUM(J2:J2)", "", "", "", ""]]);
   const buf = await wb.xlsx.writeBuffer();
   escrever("planilha-modelo.xlsx", new Uint8Array(buf as ArrayBuffer));
 }

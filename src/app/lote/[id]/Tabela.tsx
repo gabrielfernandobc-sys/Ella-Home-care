@@ -71,7 +71,7 @@ function Celula({
     setBase(original);
     setTexto(original);
   }
-  const problema = linha.problemas.find((p) => p.campo === campo.id);
+  const problema = linha.problemas.find((p) => p.campo === campo.id && p.nivel !== "info");
   const incerta = linha.confianca[campo.id] && linha.confianca[campo.id] !== "alta";
   const borda = problema ? (problema.nivel === "erro" ? "!border-red-500" : "!border-amber-500") : incerta ? "!border-amber-300" : "";
   const numerico = campo.tipo === "moeda" || campo.tipo === "numero";
@@ -160,13 +160,20 @@ export function Tabela({
                       ) : l.cor === "vermelho" && !l.forcada ? (
                         <input type="checkbox" disabled title="Corrija ou use “Lançar mesmo assim”" className="w-5 h-5" />
                       ) : (
-                        <input
-                          type="checkbox"
-                          className="w-5 h-5 accent-green-700"
-                          checked={l.aprovada}
-                          onChange={(e) => aoAprovar(l, e.target.checked)}
-                          aria-label="Aprovar linha"
-                        />
+                        <span className="flex flex-col items-center">
+                          <input
+                            type="checkbox"
+                            className="w-5 h-5 accent-green-700"
+                            checked={l.aprovada}
+                            onChange={(e) => aoAprovar(l, e.target.checked)}
+                            aria-label="Aprovar linha"
+                          />
+                          {l.aprovadaAuto && (
+                            <span className="text-[0.65rem] text-green-800" title="Aprovada automaticamente (linha verde)">
+                              auto
+                            </span>
+                          )}
+                        </span>
                       )}
                     </div>
                   </td>
@@ -182,8 +189,8 @@ export function Tabela({
                     <td colSpan={campos.length} className="px-2 pb-2 text-[0.85rem]">
                       <ul className="space-y-0.5">
                         {avisos.map((p, i) => (
-                          <li key={i} className={p.nivel === "erro" ? "text-red-800" : "text-amber-900"}>
-                            {p.nivel === "erro" ? "⛔" : "⚠️"} {p.mensagem}
+                          <li key={i} className={p.nivel === "erro" ? "text-red-800" : p.nivel === "info" ? "text-slate-600" : "text-amber-900"}>
+                            {p.nivel === "erro" ? "⛔" : p.nivel === "info" ? "ℹ️" : "⚠️"} {p.mensagem}
                           </li>
                         ))}
                       </ul>

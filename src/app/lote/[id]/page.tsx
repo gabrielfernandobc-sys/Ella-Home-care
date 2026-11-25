@@ -229,6 +229,13 @@ export default function PaginaLote() {
         </Aviso>
       )}
 
+      {dados.planilha?.aprovarVerdesAutomaticamente && faltam > 0 && (
+        <Aviso tipo="info">
+          As linhas verdes já chegam aprovadas (marcadas com “auto”). Confira as amarelas e vermelhas e, quando quiser, clique em “Lançar
+          na planilha”. Para desligar, vá em Planilha → Passo 5.
+        </Aviso>
+      )}
+
       {!lancado && <AreaEnvio loteId={id} desativado={!dados.planilha} aoEnviar={carregar} />}
 
       {progresso.total > 0 && (

@@ -11,7 +11,7 @@ export function pastaDados(): string {
   return path.resolve(/*turbopackIgnore: true*/ process.env.DADOS_DIR || path.join(process.cwd(), "data"));
 }
 
-const MIGRACOES: string[] = [
+export const MIGRACOES: string[] = [
   `
   CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL);
 
@@ -119,6 +119,40 @@ const MIGRACOES: string[] = [
     lote_id TEXT,
     detalhe TEXT
   );
+  `,
+  // 2) Fase 2: de/para com chave (CNPJ -> fornecedor, descrição -> categoria), origem e confirmações.
+  `
+  CREATE TABLE depara_v2 (
+    campo TEXT NOT NULL,
+    base TEXT NOT NULL,
+    de TEXT NOT NULL,
+    para TEXT NOT NULL,
+    origem TEXT NOT NULL DEFAULT 'usuaria',
+    usos INTEGER NOT NULL DEFAULT 0,
+    confirmacoes INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT,
+    PRIMARY KEY (campo, base, de)
+  );
+  INSERT INTO depara_v2 (campo, base, de, para, origem, usos, criado_em)
+    SELECT campo, campo, de, para, 'usuaria', usos, criado_em FROM depara;
+  DROP TABLE depara;
+  ALTER TABLE depara_v2 RENAME TO depara;
+  `,
+  // 3) Fase 2: assinatura do conteúdo do arquivo (texto do PDF ou "impressão digital" da imagem).
+  `
+  ALTER TABLE arquivos ADD COLUMN assinatura TEXT;
+  CREATE INDEX IF NOT EXISTS arquivos_assinatura ON arquivos(assinatura);
+  `,
+  // 4) Fase 2: comprovante guardado (Drive ou pasta local) de cada arquivo.
+  `
+  ALTER TABLE arquivos ADD COLUMN comprovante_id TEXT;
+  ALTER TABLE arquivos ADD COLUMN comprovante_link TEXT;
+  `,
+  // 5) Fase 2: aprovação automática de verdes (e "a usuária desmarcou de propósito").
+  `
+  ALTER TABLE linhas ADD COLUMN aprovada_auto INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE linhas ADD COLUMN desaprovada INTEGER NOT NULL DEFAULT 0;
   `,
 ];
 

@@ -5,6 +5,7 @@
  * - Desfazer remove somente as linhas criadas por aquele lote, depois de conferir
  *   que elas continuam exatamente como foram gravadas.
  */
+import type { CampoId } from "../campos";
 import { problemasDoMapeamento } from "../mapeamento";
 import { acrescentarLinhas, ErroPlanilha } from "../planilha/acrescentar";
 import { analisarAba } from "../planilha/planejador";
@@ -14,6 +15,7 @@ import { parseData } from "../texto";
 import { adaptadorPara, mensagemErroPlanilha } from "./adaptador";
 import { lerConfigPlanilha, type ConfigPlanilha } from "./config";
 import { agora, registrarEvento, transacao } from "./db";
+import { armazemPara, garantirComprovante } from "./comprovantes";
 import { abaDestino, limparCachePlanilha } from "./processamento";
 import * as repo from "./repositorio";
 
@@ -89,6 +91,32 @@ export function lancarLote(loteId: string, usuaria: string | null): Promise<Resu
     const resultado: ResultadoLancamento = { lancadas: 0, puladas: puladas.length, abas: [], alertas: [] };
     const arquivos = new Map(repo.arquivosDoLote(loteId).map((a) => [a.id, a]));
 
+    // Comprovantes: guarda os arquivos ANTES de gravar na planilha. Se falhar, nada é gravado.
+    const links = new Map<string, string>();
+    if (cfg.comprovantesAtivo) {
+      let armazem;
+      try {
+        armazem = armazemPara(cfg);
+      } catch (e) {
+        throw new ErroLancamento((e as Error).message);
+      }
+      for (const l of aLancar) {
+        const arq = arquivos.get(l.arquivo_id);
+        if (!arq || links.has(arq.id)) continue;
+        try {
+          links.set(arq.id, await garantirComprovante(armazem, arq, l.valores.data_emissao));
+        } catch (e) {
+          registrarEvento("comprovante_falhou", { arquivo: arq.nome }, loteId, usuaria ?? undefined);
+          throw new ErroLancamento(
+            `Não consegui guardar o comprovante “${arq.nome}” (${mensagemErroPlanilha(e)}). Nada foi lançado. Tente de novo ou desligue os comprovantes em “Planilha”.`,
+          );
+        }
+      }
+      if (!cfg.mapeamento.includes("comprovante")) {
+        resultado.alertas.push("Comprovantes guardados, mas a planilha não tem a coluna “Comprovante” para o link.");
+      }
+    }
+
     for (const [aba, linhasAba] of grupos) {
       const ordenadas = [...linhasAba].sort((a, b) =>
         (parseData(a.valores.data_emissao) ?? "").localeCompare(parseData(b.valores.data_emissao) ?? ""),
@@ -101,7 +129,12 @@ export function lancarLote(loteId: string, usuaria: string | null): Promise<Resu
           linhaCabecalho: cfg.linhaCabecalho,
           mapeamento: cfg.mapeamento,
           colunasFormula: cfg.colunasFormula,
-          linhas: ordenadas.map((l) => ({ ...l.valores, id_lote: loteId, arquivo_origem: arquivos.get(l.arquivo_id)?.nome ?? null })),
+          linhas: ordenadas.map((l) => ({
+            ...l.valores,
+            id_lote: loteId,
+            arquivo_origem: arquivos.get(l.arquivo_id)?.nome ?? null,
+            comprovante: links.get(l.arquivo_id) ?? null,
+          })),
         });
         transacao(() => {
           ordenadas.forEach((l, i) => {
@@ -120,6 +153,15 @@ export function lancarLote(loteId: string, usuaria: string | null): Promise<Resu
             });
             repo.atualizarLinha(l.id, { lancada: true });
           });
+          // Correção do de/para lançada sem mudança pela usuária: uma confirmação por regra (por lançamento,
+          // não por item, para que uma nota com 10 itens não conte como 10 confirmações).
+          const confirmadas = new Map<string, { campo: CampoId; base: CampoId; de: string }>();
+          for (const l of ordenadas) {
+            for (const d of l.depara ?? []) {
+              if (d.regra && l.valores[d.campo] === d.para) confirmadas.set(`${d.regra.campo}|${d.regra.base}|${d.regra.de}`, d.regra);
+            }
+          }
+          for (const r of confirmadas.values()) repo.confirmarDePara(r);
         });
         resultado.lancadas += ordenadas.length;
         resultado.abas.push({ aba, linhas: r.linhas.map((x) => x + 1) });

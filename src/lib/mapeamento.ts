@@ -123,6 +123,7 @@ const SINONIMOS_BASE: Record<CampoId, string[]> = {
     "arquivo origem",
   ],
   id_lote: ["lote", "id lote", "id do lote", "lote id", "id lancamento", "lancamento"],
+  comprovante: ["comprovante", "link", "link do comprovante", "link comprovante", "anexo", "link da nota", "drive"],
 };
 
 function sinonimos(granularidade: Granularidade): Record<CampoId, string[]> {

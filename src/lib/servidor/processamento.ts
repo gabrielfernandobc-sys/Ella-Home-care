@@ -7,13 +7,18 @@ import { nomeAbaMensal } from "../abas";
 import { CAMPO_POR_ID, type CampoId, type ValoresLinha } from "../campos";
 import { chavesDaPlanilha, chavesDocumento, explicarChave, hashArquivo, hashLinha } from "../duplicatas";
 import { extrairArquivo, ErroExtracao } from "../extracao";
-import { detectarTipo, gerarPrevia } from "../extracao/imagem";
-import { aplicarDePara, camposDoDocumento, documentoParaLinhas } from "../linhas";
+import { assinaturaImagem, detectarTipo, DISTANCIA_VISUAL_MAXIMA, distanciaVisual, gerarPrevia } from "../extracao/imagem";
+import { assinaturaTexto, lerTextoPdf } from "../extracao/pdf";
+import { parseData, parseNumero } from "../texto";
+import { CAMPOS_DEPARA, explicarDePara, fornecedoresPorCnpj, TabelaDePara } from "../depara";
+import { camposDoDocumento, documentoParaLinhas } from "../linhas";
+import { alertaDePreco, LIMITE_ACIMA_PADRAO, type HistoricoPrecos } from "../precos";
 import { corDaLinha, validarDocumento, type Problema } from "../validacao";
 import { adaptadorPara } from "./adaptador";
 import { caminhoPara, salvarBytes } from "./armazenamento";
 import { lerConfigPlanilha, type ConfigPlanilha } from "./config";
 import { agora, transacao } from "./db";
+import { historicoDePrecos, limparCacheRegistros } from "./relatorios";
 import * as repo from "./repositorio";
 
 // ---------------- Recebimento ----------------
@@ -38,6 +43,21 @@ export async function receberArquivo(loteId: string, nome: string, bytes: Uint8A
   } else if (lanc) {
     duplicadoDe = anteriores[0] ?? null;
     motivo = `Este mesmo arquivo já foi lançado em ${new Date(lanc.criado_em).toLocaleDateString("pt-BR")} (lote ${lanc.lote_id}).`;
+  }
+
+  // Assinatura do conteúdo: o mesmo PDF salvo de novo (bytes diferentes, mesmo texto) é o mesmo arquivo.
+  const assinatura = await calcularAssinatura(bytes, tipo).catch(() => null);
+  if (!motivo && assinatura?.startsWith("txt:")) {
+    const iguais = repo.arquivosComAssinatura(assinatura);
+    const mesmoLote = iguais.find((a) => a.lote_id === loteId);
+    const jaLancado = iguais.map((a) => ({ a, l: repo.lancamentoDoHashArquivo(a.hash) })).find((x) => x.l);
+    if (mesmoLote) {
+      duplicadoDe = mesmoLote;
+      motivo = `Mesmo conteúdo do arquivo “${mesmoLote.nome}”, que já está neste lote (o PDF foi salvo de novo).`;
+    } else if (jaLancado) {
+      duplicadoDe = jaLancado.a;
+      motivo = `Mesmo conteúdo do PDF “${jaLancado.a.nome}”, já lançado em ${new Date(jaLancado.l!.criado_em).toLocaleDateString("pt-BR")} (lote ${jaLancado.l!.lote_id}).`;
+    }
   }
 
   const caminho = caminhoPara(hash, tipo);
@@ -70,9 +90,55 @@ export async function receberArquivo(loteId: string, nome: string, bytes: Uint8A
     criado_em: agora(),
     processado_em: null,
     apagado_em: null,
+    assinatura,
   };
   repo.inserirArquivo(arquivo);
   return { arquivo, duplicado: !!motivo };
+}
+
+async function calcularAssinatura(bytes: Uint8Array, tipo: string): Promise<string | null> {
+  if (tipo === "pdf") {
+    const t = await lerTextoPdf(bytes);
+    const a = t.temTexto ? assinaturaTexto(t.texto) : null;
+    return a ? `txt:${a}` : null;
+  }
+  if (["png", "jpeg", "heic", "webp", "gif"].includes(tipo)) {
+    return `img:${await assinaturaImagem(bytes, tipo as "png")}`;
+  }
+  return null;
+}
+
+/** Dois documentos se contradizem (valor, data ou CNPJ diferentes)? Então não são o mesmo. */
+function contradizem(a: ValoresLinha, b: ValoresLinha): boolean {
+  const ta = parseNumero(a.total_nota);
+  const tb = parseNumero(b.total_nota);
+  if (ta !== null && tb !== null && Math.abs(ta - tb) > 0.01) return true;
+  const da = parseData(a.data_emissao);
+  const db_ = parseData(b.data_emissao);
+  if (da && db_ && da !== db_) return true;
+  const ca = String(a.cnpj ?? "").replace(/\W/g, "");
+  const cb = String(b.cnpj ?? "").replace(/\W/g, "");
+  return !!(ca && cb && ca !== cb);
+}
+
+/**
+ * Print/foto praticamente igual a outro (salvo de novo, reenviado pelo WhatsApp…) e cujos dados lidos
+ * não se contradizem: possível duplicata. Só compara com arquivos anteriores deste lote ou já lançados.
+ */
+function imagemRepetida(arq: repo.Arquivo, valores: ValoresLinha): string | null {
+  if (!arq.assinatura?.startsWith("img:")) return null;
+  for (const c of repo.arquivosDeImagem(arq.id)) {
+    if (distanciaVisual(arq.assinatura.slice(4), c.assinatura.slice(4)) > DISTANCIA_VISUAL_MAXIMA) continue;
+    const antesNoLote = c.lote_id === arq.lote_id && (c.criado_em < arq.criado_em || (c.criado_em === arq.criado_em && c.id < arq.id));
+    const lancado = repo.lancamentoDoHashArquivo(c.hash);
+    if (!antesNoLote && !lancado) continue;
+    const docs = repo.valoresDosDocumentosDoArquivo(c.id);
+    if (docs.length && docs.every((d) => contradizem(valores, d))) continue;
+    return lancado
+      ? `Imagem praticamente igual a “${c.nome}”, já lançada (lote ${lancado.lote_id}) — possível duplicata.`
+      : `Imagem praticamente igual a “${c.nome}”, deste lote — possível duplicata.`;
+  }
+  return null;
 }
 
 // ---------------- Processamento ----------------
@@ -90,7 +156,12 @@ export async function processarArquivo(arquivoId: string, reenfileirar: (id: str
     const bytes = fs.readFileSync(arq.caminho);
     const r = await extrairArquivo(bytes, arq.nome);
     const granularidade = cfg?.granularidade ?? "item";
-    const tabela = repo.tabelaDePara();
+    // Aprende com a planilha (nome usado para cada CNPJ) antes de aplicar o de/para.
+    if (cfg?.mapeamento.length) {
+      const abas = [...new Set(r.documentos.map((d) => abaDestino(cfg, { data_emissao: d.data_emissao })).filter(Boolean))] as string[];
+      for (const aba of abas) await lerAbaComCache(cfg, aba).catch(() => null);
+    }
+    const tabela = new TabelaDePara(repo.regrasDePara());
 
     const docIds: string[] = [];
     transacao(() => {
@@ -111,8 +182,8 @@ export async function processarArquivo(arquivoId: string, reenfileirar: (id: str
         });
         docIds.push(docId);
         documentoParaLinhas(doc, { granularidade, arquivo: arq.nome, loteId: arq.lote_id }).forEach((g, i) => {
-          const { valores, aplicados } = aplicarDePara(g.valores, tabela);
-          for (const a of aplicados) repo.registrarUsoDePara(a.campo, a.de);
+          const { valores, aplicados } = tabela.aplicar(g.valores);
+          for (const a of aplicados) repo.registrarUsoDePara(a.regra);
           repo.inserirLinha({
             id: repo.id(),
             lote_id: arq.lote_id,
@@ -128,6 +199,8 @@ export async function processarArquivo(arquivoId: string, reenfileirar: (id: str
             duplicada: false,
             motivo_duplicata: null,
             aprovada: false,
+            aprovada_auto: false,
+            desaprovada: false,
             forcada: false,
             editada: false,
             hash: hashLinha(chaves, i, arq.hash),
@@ -169,9 +242,14 @@ const TTL = 2 * 60 * 1000;
 
 export function limparCachePlanilha() {
   cachePlanilha.clear();
+  limparCacheRegistros();
 }
 
-async function chavesNaAba(cfg: ConfigPlanilha, aba: string): Promise<Set<string> | null> {
+/**
+ * Lê a aba (com cache curto) e devolve as chaves de documentos que já estão lá.
+ * De quebra, aprende "CNPJ -> nome do fornecedor" como a planilha escreve.
+ */
+async function lerAbaComCache(cfg: ConfigPlanilha, aba: string): Promise<Set<string>> {
   const k = `${cfg.planilhaId}::${aba}`;
   const c = cachePlanilha.get(k);
   if (c && Date.now() - c.em < TTL) return c.chaves;
@@ -184,6 +262,12 @@ async function chavesNaAba(cfg: ConfigPlanilha, aba: string): Promise<Set<string
   }
   const grade = await adaptador.lerGrade(aba);
   const chaves = chavesDaPlanilha(grade, cfg.mapeamento, cfg.linhaCabecalho);
+  const colCnpj = cfg.mapeamento.indexOf("cnpj");
+  const colForn = cfg.mapeamento.indexOf("fornecedor");
+  if (colCnpj >= 0 && colForn >= 0) {
+    const linhas = grade.valores.slice(cfg.linhaCabecalho).map((l) => ({ cnpj: l?.[colCnpj], fornecedor: l?.[colForn] }));
+    for (const [cnpj, nome] of fornecedoresPorCnpj(linhas)) repo.salvarRegraDePara("fornecedor", "cnpj", cnpj, nome, "planilha");
+  }
   cachePlanilha.set(k, { chaves, em: Date.now() });
   return chaves;
 }
@@ -233,13 +317,16 @@ export async function reavaliarDocumentos(docIds: string[]) {
       }
     }
 
+    // 1b) Print/foto salvo de novo
+    if (!motivo && arq) motivo = imagemRepetida(arq, v0);
+
     // 2) Duplicata do que já está na planilha
     const extras: Problema[] = [];
     if (!motivo && cfg && cfg.mapeamento.length) {
       const aba = abaDestino(cfg, v0);
       if (aba) {
         try {
-          const naPlanilha = await chavesNaAba(cfg, aba);
+          const naPlanilha = await lerAbaComCache(cfg, aba);
           const comum = chaves.find((k) => naPlanilha?.has(k));
           if (comum) motivo = `Já está na planilha, aba “${aba}” (${explicarChave(comum)}).`;
         } catch {
@@ -270,25 +357,60 @@ export async function reavaliarDocumentos(docIds: string[]) {
       });
     }
 
+    // 4) Fase 3: preço fora do padrão (comparado com o histórico da planilha). Só aviso; nunca muda valor.
+    let historico: HistoricoPrecos | null = null;
+    if (cfg && cfg.granularidade === "item" && cfg.alertaPrecoAtivo !== false) {
+      historico = await historicoDePrecos(cfg).catch(() => null);
+    }
+    const alertasPreco = linhas.map((l) => {
+      if (!historico) return null;
+      const q = parseNumero(l.valores.quantidade);
+      const t = parseNumero(l.valores.valor_total_item);
+      const unitario = parseNumero(l.valores.valor_unitario) ?? (q && t !== null ? t / q : null);
+      return alertaDePreco(
+        { descricao: l.valores.descricao, unidade: l.valores.unidade, unitario, data: parseData(l.valores.data_emissao) },
+        historico,
+        cfg?.alertaPrecoPercentual ?? LIMITE_ACIMA_PADRAO,
+      );
+    });
+
     linhas.forEach((l, i) => {
       if (l.lancada) return;
       const p = [...extras, ...problemas[i]];
-      if (l.depara.length) {
-        p.push({
-          nivel: "aviso",
-          mensagem: `Corrigido automaticamente: ${l.depara.map((d) => `“${d.de}” → “${d.para}”`).join(", ")}. Confira.`,
-        });
+      const alerta = alertasPreco[i];
+      if (alerta) p.push({ campo: "valor_unitario", nivel: "aviso", mensagem: alerta.mensagem });
+      // Correções do de/para: regra confiável vira só uma nota; as demais pedem conferência.
+      const confiaveis = l.depara.filter((d) => d.confiavel);
+      const conferir = l.depara.filter((d) => !d.confiavel);
+      if (conferir.length) {
+        p.push({ nivel: "aviso", mensagem: `Corrigido automaticamente: ${conferir.map(explicarDePara).join("; ")}. Confira.` });
+      }
+      if (confiaveis.length) {
+        p.push({ nivel: "info", mensagem: `Corrigido pelo de/para: ${confiaveis.map(explicarDePara).join("; ")}.` });
       }
       const duplicada = !!motivo;
       const cor = corDaLinha(p, duplicada);
+      // Linha que virou vermelha perde a aprovação (a menos que a usuária tenha forçado).
+      let aprovada = l.aprovada && (cor !== "vermelho" || l.forcada);
+      let aprovadaAuto = l.aprovada_auto && aprovada;
+      // Aprovação automática só vale enquanto a linha estiver verde.
+      if (aprovadaAuto && cor !== "verde") {
+        aprovada = false;
+        aprovadaAuto = false;
+      }
+      // Opção "aprovar verdes automaticamente" (desligada por padrão); nunca reaprova o que a usuária desmarcou.
+      if (cfg?.aprovarVerdesAutomaticamente && cor === "verde" && !aprovada && !l.desaprovada) {
+        aprovada = true;
+        aprovadaAuto = true;
+      }
       repo.atualizarLinha(l.id, {
         problemas: p,
         cor,
         duplicada,
         motivo_duplicata: motivo,
         hash: hashes[i],
-        // Linha que virou vermelha perde a aprovação (a menos que a usuária tenha forçado).
-        aprovada: l.aprovada && (cor !== "vermelho" || l.forcada),
+        aprovada,
+        aprovada_auto: aprovadaAuto,
       });
     });
   }
@@ -312,9 +434,8 @@ export async function editarLinha(linhaId: string, novos: ValoresLinha) {
       const antes = atual.valores[campo];
       if (antes === limpo) continue;
       atual.valores[campo] = limpo;
-      // Aprendizado de/para: o texto original lido -> o que a usuária escreveu.
-      const original = atual.originais[campo];
-      if (typeof original === "string" && typeof limpo === "string") repo.salvarDePara(campo, original, limpo);
+      // Aprendizado de/para (só na linha editada, para não ensinar a mesma coisa várias vezes).
+      if (l.id === linha.id && typeof limpo === "string" && CAMPOS_DEPARA.includes(campo)) aprenderComEdicao(atual, campo, limpo);
       // Valor conferido pela usuária: a dúvida de leitura deixa de valer.
       atual.confianca[campo] = "alta";
       repo.atualizarLinha(l.id, {
@@ -327,4 +448,22 @@ export async function editarLinha(linhaId: string, novos: ValoresLinha) {
   }
   await reavaliarDocumentos([linha.documento_id]);
   return repo.obterLinha(linhaId);
+}
+
+/**
+ * O que a edição ensina:
+ * - o texto original lido -> o texto que a usuária escreveu (mesmo campo);
+ * - fornecedor: também o CNPJ -> nome;
+ * - categoria: também a descrição do item -> categoria.
+ */
+function aprenderComEdicao(linha: repo.Linha, campo: CampoId, novo: string) {
+  const original = linha.originais[campo];
+  if (typeof original === "string" && original.trim() && campo !== "categoria") {
+    repo.salvarRegraDePara(campo, campo, original, novo);
+  }
+  if (campo === "fornecedor" && linha.valores.cnpj) repo.salvarRegraDePara("fornecedor", "cnpj", linha.valores.cnpj, novo);
+  if (campo === "categoria") {
+    const descricao = linha.originais.descricao ?? linha.valores.descricao;
+    if (descricao) repo.salvarRegraDePara("categoria", "descricao", descricao, novo);
+  }
 }

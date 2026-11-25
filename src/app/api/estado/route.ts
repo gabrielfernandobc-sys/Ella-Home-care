@@ -1,7 +1,7 @@
 import { iaConfigurada } from "@/lib/extracao/ia";
 import { lerConfigPlanilha } from "@/lib/servidor/config";
 import { fila } from "@/lib/servidor/fila";
-import { googleConfigurado, sessaoGoogle } from "@/lib/servidor/google-auth";
+import { googleConfigurado, sessaoGoogle, temEscopoDrive } from "@/lib/servidor/google-auth";
 import { ok } from "@/lib/servidor/http";
 import { diasDeRetencao } from "@/lib/servidor/limpeza";
 import { ultimoLoteLancado } from "@/lib/servidor/repositorio";
@@ -13,6 +13,7 @@ export async function GET() {
     googleConfigurado: googleConfigurado(),
     googleConectado: !!sessao,
     email: sessao?.email ?? null,
+    driveAutorizado: temEscopoDrive(),
     iaConfigurada: iaConfigurada(),
     planilha: cfg
       ? {

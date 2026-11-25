@@ -1,8 +1,7 @@
 /** Acesso aos dados locais: lotes, arquivos, documentos, linhas, de/para. */
 import { randomUUID } from "node:crypto";
 import type { CampoId, ConfiancaLinha, ValoresLinha } from "../campos";
-import type { TabelaDePara } from "../linhas";
-import { normalizar } from "../texto";
+import { chaveDePara, type DeParaAplicado, type RegraDePara } from "../depara";
 import type { Cor, Problema } from "../validacao";
 import { agora, db } from "./db";
 
@@ -35,6 +34,10 @@ export interface Arquivo {
   criado_em: string;
   processado_em: string | null;
   apagado_em: string | null;
+  /** "txt:<sha256>" (PDF com texto) ou "img:<assinatura visual>" (imagens) */
+  assinatura: string | null;
+  comprovante_id?: string | null;
+  comprovante_link?: string | null;
 }
 
 export interface Documento {
@@ -57,12 +60,16 @@ export interface Linha {
   valores: ValoresLinha;
   originais: ValoresLinha;
   confianca: ConfiancaLinha;
-  depara: { campo: CampoId; de: string; para: string }[];
+  depara: DeParaAplicado[];
   problemas: Problema[];
   cor: Cor;
   duplicada: boolean;
   motivo_duplicata: string | null;
   aprovada: boolean;
+  /** aprovada sozinha por ser verde (opção da fase 2) */
+  aprovada_auto: boolean;
+  /** a usuária desmarcou de propósito: nunca reaprovar sozinho */
+  desaprovada: boolean;
   forcada: boolean;
   editada: boolean;
   hash: string;
@@ -71,7 +78,18 @@ export interface Linha {
 
 type LinhaBruta = Omit<
   Linha,
-  "valores" | "originais" | "confianca" | "depara" | "problemas" | "duplicada" | "aprovada" | "forcada" | "editada" | "lancada"
+  | "valores"
+  | "originais"
+  | "confianca"
+  | "depara"
+  | "problemas"
+  | "duplicada"
+  | "aprovada"
+  | "aprovada_auto"
+  | "desaprovada"
+  | "forcada"
+  | "editada"
+  | "lancada"
 > & {
   valores: string;
   originais: string;
@@ -80,6 +98,8 @@ type LinhaBruta = Omit<
   problemas: string;
   duplicada: number;
   aprovada: number;
+  aprovada_auto: number;
+  desaprovada: number;
   forcada: number;
   editada: number;
   lancada: number;
@@ -95,6 +115,8 @@ function linhaDeBruta(r: LinhaBruta): Linha {
     problemas: JSON.parse(r.problemas),
     duplicada: !!r.duplicada,
     aprovada: !!r.aprovada,
+    aprovada_auto: !!r.aprovada_auto,
+    desaprovada: !!r.desaprovada,
     forcada: !!r.forcada,
     editada: !!r.editada,
     lancada: !!r.lancada,
@@ -157,10 +179,25 @@ export function atualizarLote(loteId: string, campos: Partial<Pick<Lote, "status
 export function inserirArquivo(a: Omit<Arquivo, "tentativas" | "processado_em" | "apagado_em">) {
   db()
     .prepare(
-      `INSERT INTO arquivos (id, lote_id, nome, tamanho, hash, tipo, caminho, previa, status, metodo, erro, duplicado_de, criado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO arquivos (id, lote_id, nome, tamanho, hash, tipo, caminho, previa, status, metodo, erro, duplicado_de, criado_em, assinatura)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(a.id, a.lote_id, a.nome, a.tamanho, a.hash, a.tipo, a.caminho, a.previa, a.status, a.metodo, a.erro, a.duplicado_de, a.criado_em);
+    .run(
+      a.id,
+      a.lote_id,
+      a.nome,
+      a.tamanho,
+      a.hash,
+      a.tipo,
+      a.caminho,
+      a.previa,
+      a.status,
+      a.metodo,
+      a.erro,
+      a.duplicado_de,
+      a.criado_em,
+      a.assinatura,
+    );
 }
 
 export function obterArquivo(arquivoId: string): Arquivo | null {
@@ -181,6 +218,34 @@ export function atualizarArquivo(arquivoId: string, campos: Partial<Arquivo>) {
   db()
     .prepare(`UPDATE arquivos SET ${chaves.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`)
     .run(...(Object.values(campos) as (string | number | null)[]), arquivoId);
+}
+
+export function arquivosComAssinatura(assinatura: string): Arquivo[] {
+  return db().prepare("SELECT * FROM arquivos WHERE assinatura = ? ORDER BY criado_em").all(assinatura) as unknown as Arquivo[];
+}
+
+/** Imagens recebidas (para procurar prints salvos de novo). */
+export function arquivosDeImagem(exceto: string, limite = 3000) {
+  return db()
+    .prepare(
+      "SELECT id, lote_id, nome, hash, assinatura, criado_em FROM arquivos WHERE assinatura LIKE 'img:%' AND id != ? ORDER BY criado_em DESC LIMIT ?",
+    )
+    .all(exceto, limite) as { id: string; lote_id: string; nome: string; hash: string; assinatura: string; criado_em: string }[];
+}
+
+/** Valores (da primeira linha) de cada documento lido de um arquivo. */
+export function valoresDosDocumentosDoArquivo(arquivoId: string): ValoresLinha[] {
+  return (
+    db().prepare("SELECT valores FROM linhas WHERE arquivo_id = ? AND indice = 0").all(arquivoId) as { valores: string }[]
+  ).map((r) => JSON.parse(r.valores));
+}
+
+/** Link de comprovante já enviado para um arquivo com este mesmo conteúdo (evita enviar duas vezes). */
+export function comprovanteDoHash(hash: string): { id: string; link: string } | null {
+  const r = db()
+    .prepare("SELECT comprovante_id AS id, comprovante_link AS link FROM arquivos WHERE hash = ? AND comprovante_link IS NOT NULL LIMIT 1")
+    .get(hash) as { id: string; link: string } | undefined;
+  return r ?? null;
 }
 
 export function arquivosPendentes(): Arquivo[] {
@@ -303,7 +368,20 @@ export function atualizarLinha(
   campos: Partial<
     Pick<
       Linha,
-      "valores" | "confianca" | "problemas" | "cor" | "duplicada" | "motivo_duplicata" | "aprovada" | "forcada" | "editada" | "hash" | "lancada" | "depara"
+      | "valores"
+      | "confianca"
+      | "problemas"
+      | "cor"
+      | "duplicada"
+      | "motivo_duplicata"
+      | "aprovada"
+      | "aprovada_auto"
+      | "desaprovada"
+      | "forcada"
+      | "editada"
+      | "hash"
+      | "lancada"
+      | "depara"
     >
   >,
 ) {
@@ -380,43 +458,58 @@ export function ultimoLoteLancado(): string | null {
 
 // ---------- De/para ----------
 
-export function tabelaDePara(): TabelaDePara {
-  const rs = db().prepare("SELECT campo, de, para FROM depara").all() as { campo: CampoId; de: string; para: string }[];
-  const t: TabelaDePara = new Map();
-  for (const r of rs) {
-    if (!t.has(r.campo)) t.set(r.campo, new Map());
-    t.get(r.campo)!.set(r.de, r.para);
-  }
-  return t;
+export function regrasDePara(): RegraDePara[] {
+  return db().prepare("SELECT campo, base, de, para, origem, confirmacoes FROM depara").all() as unknown as RegraDePara[];
 }
 
-export function salvarDePara(campo: CampoId, de: string, para: string) {
-  const chave = normalizar(de);
-  if (!chave || !para.trim() || normalizar(para) === chave) return;
+/**
+ * Salva (ou atualiza) uma regra. Se o "para" mudar, as confirmações voltam a zero.
+ * Regras aprendidas da planilha nunca substituem uma regra ensinada pela usuária.
+ */
+export function salvarRegraDePara(
+  campo: CampoId,
+  base: CampoId,
+  deTexto: unknown,
+  para: string,
+  origem: "usuaria" | "planilha" = "usuaria",
+) {
+  const chave = chaveDePara(base, deTexto);
+  const destino = para.trim();
+  if (!chave || !destino) return;
+  if (base === campo && chaveDePara(campo, destino) === chave) return; // nada a corrigir
+  const existente = db()
+    .prepare("SELECT para, origem FROM depara WHERE campo = ? AND base = ? AND de = ?")
+    .get(campo, base, chave) as { para: string; origem: string } | undefined;
+  if (existente && origem === "planilha" && existente.origem === "usuaria") return;
+  if (existente && existente.para === destino) return;
   db()
     .prepare(
-      `INSERT INTO depara (campo, de, para, criado_em) VALUES (?, ?, ?, ?)
-       ON CONFLICT(campo, de) DO UPDATE SET para = excluded.para`,
+      `INSERT INTO depara (campo, base, de, para, origem, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(campo, base, de) DO UPDATE SET para = excluded.para, origem = excluded.origem,
+         confirmacoes = 0, atualizado_em = excluded.atualizado_em`,
     )
-    .run(campo, chave, para.trim(), agora());
+    .run(campo, base, chave, destino, origem, agora(), agora());
 }
 
-export function registrarUsoDePara(campo: CampoId, de: string) {
-  db().prepare("UPDATE depara SET usos = usos + 1 WHERE campo = ? AND de = ?").run(campo, normalizar(de));
+type ChaveRegra = { campo: CampoId; base: CampoId; de: string };
+
+export function registrarUsoDePara(r: ChaveRegra) {
+  db().prepare("UPDATE depara SET usos = usos + 1 WHERE campo = ? AND base = ? AND de = ?").run(r.campo, r.base, r.de);
+}
+
+/** A linha foi lançada sem a usuária mudar o valor corrigido: a regra ganha uma confirmação. */
+export function confirmarDePara(r: ChaveRegra) {
+  db().prepare("UPDATE depara SET confirmacoes = confirmacoes + 1 WHERE campo = ? AND base = ? AND de = ?").run(r.campo, r.base, r.de);
 }
 
 export function listarDePara() {
-  return db().prepare("SELECT campo, de, para, usos, criado_em FROM depara ORDER BY campo, de").all() as {
-    campo: CampoId;
-    de: string;
-    para: string;
-    usos: number;
-    criado_em: string;
-  }[];
+  return db()
+    .prepare("SELECT campo, base, de, para, origem, usos, confirmacoes, criado_em FROM depara ORDER BY campo, base, de")
+    .all() as unknown as (RegraDePara & { usos: number; criado_em: string })[];
 }
 
-export function excluirDePara(campo: string, de: string) {
-  db().prepare("DELETE FROM depara WHERE campo = ? AND de = ?").run(campo, de);
+export function excluirDePara(campo: string, base: string, de: string) {
+  db().prepare("DELETE FROM depara WHERE campo = ? AND base = ? AND de = ?").run(campo, base, de);
 }
 
 export function valoresConhecidos(campo: CampoId, limite = 500): string[] {
