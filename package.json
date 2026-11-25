@@ -1,0 +1,45 @@
+{
+  "name": "compras-express",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "node scripts/iniciar-servidor.mjs",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "exemplos": "node --experimental-strip-types scripts/gerar-exemplos.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
+    "@googleapis/sheets": "^18.1.3",
+    "fast-xml-parser": "^5.12.1",
+    "google-auth-library": "^11.3.4",
+    "heic-convert": "^2.1.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "sharp": "^0.35.5",
+    "unpdf": "^1.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/heic-convert": "^2.1.1",
+    "@types/node": "^22.20.7",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5",
+    "vitest": "^5.1.2"
+  },
+  "description": "Lança notas fiscais e prints de compras numa planilha recorrente, com revisão antes de gravar.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  }
+}

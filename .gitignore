@@ -1,0 +1,77 @@
+# =========================================================
+# NUNCA versionar segredos, dados reais ou arquivos enviados
+# =========================================================
+
+# Segredos e variáveis de ambiente (só o .env.example entra no Git)
+.env
+.env.*
+!.env.example
+
+# Credenciais OAuth, chaves e certificados
+client_secret*.json
+credentials*.json
+credenciais*.json
+token*.json
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+
+# Dados locais do app: banco SQLite, uploads, planilha de demonstração
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Notas e planilhas reais que alguém possa copiar para a pasta por engano.
+# Os exemplos fictícios ficam em /exemplos e são liberados abaixo.
+*.xlsx
+*.xls
+*.ods
+*.csv
+*.xml
+*.pdf
+*.heic
+*.HEIC
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.png
+*.PNG
+!/exemplos/**
+!/public/**
+!/src/**
+
+# Dependências
+/node_modules
+/.pnp
+.pnp.*
+
+# Testes
+/coverage
+
+# Next.js
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
